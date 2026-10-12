@@ -9,6 +9,11 @@ const status = document.querySelector("#status");
 const tooltip = document.querySelector("#point-tooltip");
 const deleteDialog = document.querySelector("#delete-dialog");
 const deleteMessage = document.querySelector("#delete-message");
+const logButtons = { x: document.querySelector("#log-x"), y: document.querySelector("#log-y") };
+const logScale = { x: false, y: false };
+const scaleHelp = document.querySelector("#scale-help");
+const exportStatus = document.querySelector("#export-status");
+const exportButtons = document.querySelectorAll(".export-button");
 let pointToDelete = null;
 
 function showStatus(message, isError = false) {
@@ -137,12 +142,30 @@ function dataRange(key) {
     min = Math.min(min, point[key]);
     max = Math.max(max, point[key]);
   }
-  // Give constant values a nonzero axis range to avoid division by zero.
-  if (min === max) {
-    if (min === 0) return [-1, 1];
-    return min > 0 ? [min / 2, max] : [min, max / 2];
-  }
   return [min, max];
+}
+
+for (const key of ["x", "y"]) {
+  logButtons[key].addEventListener("click", () => {
+    logScale[key] = !logScale[key];
+    render();
+  });
+}
+
+function updateScaleControls() {
+  const descriptions = [];
+  for (const key of ["x", "y"]) {
+    const allowed = points.length > 0 && points.every((point) => point[key] > 0);
+    const reset = logScale[key] && !allowed;
+    if (!allowed) logScale[key] = false;
+    const button = logButtons[key];
+    button.disabled = !allowed;
+    button.setAttribute("aria-pressed", String(logScale[key]));
+    button.textContent = `${key.toUpperCase()}: Switch to ${logScale[key] ? "linear" : "log"} scale`;
+    const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
+    descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
+  }
+  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Add data to change the axis scales.";
 }
 
 function drawChart(svg, connectPoints) {
@@ -153,29 +176,31 @@ function drawChart(svg, connectPoints) {
   }
 
   // Use fixed SVG coordinates; CSS scales the chart to fit its container.
-  const left = 76, right = 458, top = 20, bottom = 252;
+  const left = 84, right = 438, top = 20, bottom = 252;
   const [xMin, xMax] = dataRange("x");
   const [yMin, yMax] = dataRange("y");
-  const fraction = (value, min, max) => (value / 2 - min / 2) / (max / 2 - min / 2);
-  const scaleX = (x) => left + fraction(x, xMin, xMax) * (right - left);
-  const scaleY = (y) => bottom - fraction(y, yMin, yMax) * (bottom - top);
-  const format = (value) => String(Number(value.toPrecision(3)));
+  const xAxis = createAxis(xMin, xMax, logScale.x);
+  const yAxis = createAxis(yMin, yMax, logScale.y);
+  const scaleX = (x) => left + xAxis.position(x) * (right - left);
+  const scaleY = (y) => bottom - yAxis.position(y) * (bottom - top);
 
-  // Draw five sets of tick labels and horizontal grid lines.
+  // Draw the grid separately so a constant axis needs just one centered label.
   for (let i = 0; i <= 4; i++) {
-    const ratio = i / 4;
+    const y = bottom - i / 4 * (bottom - top);
+    svg.append(svgElement("line", { x1: left, y1: y, x2: right, y2: y, class: "grid" }));
+  }
+  for (const ratio of xAxis.tickRatios) {
     const x = left + ratio * (right - left);
+    svg.append(svgElement("text", { x, y: bottom + 22, "text-anchor": "middle" }, formatTick(xAxis.tick(ratio))));
+  }
+  for (const ratio of yAxis.tickRatios) {
     const y = bottom - ratio * (bottom - top);
-    svg.append(
-      svgElement("line", { x1: left, y1: y, x2: right, y2: y, class: "grid" }),
-      svgElement("text", { x, y: bottom + 22, "text-anchor": "middle" }, format(xMin * (1 - ratio) + xMax * ratio)),
-      svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, format(yMin * (1 - ratio) + yMax * ratio))
-    );
+    svg.append(svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, formatTick(yAxis.tick(ratio))));
   }
   svg.append(
     svgElement("path", { d: `M ${left} ${top} V ${bottom} H ${right}`, class: "axis" }),
-    svgElement("text", { x: (left + right) / 2, y: 296, "text-anchor": "middle" }, "X"),
-    svgElement("text", { x: 14, y: 16 }, "Y")
+    svgElement("text", { x: (left + right) / 2, y: 296, "text-anchor": "middle" }, logScale.x ? "X (log)" : "X"),
+    svgElement("text", { x: 14, y: 16 }, logScale.y ? "Y (log)" : "Y")
   );
 
   // The line chart adds a polyline; both chart types share the remaining code.
@@ -207,10 +232,102 @@ function drawChart(svg, connectPoints) {
 
 function render() {
   hideTooltip();
+  updateScaleControls();
+  exportStatus.textContent = "";
+  exportButtons.forEach((button) => { button.disabled = points.length === 0; });
   points.sort((a, b) => a.x - b.x);
   drawChart(document.querySelector("#line-chart"), true);
   drawChart(document.querySelector("#scatter-chart"), false);
 }
+
+// Make the SVG self-contained so downloaded images keep their colors and fonts.
+function chartImage(svg, title) {
+  const copy = svg.cloneNode(true);
+  const originals = svg.querySelectorAll("*");
+  const clones = copy.querySelectorAll("*");
+  originals.forEach((element, index) => {
+    const style = getComputedStyle(element);
+    for (const property of ["fill", "stroke", "stroke-width", "font-family", "font-size", "font-weight"]) {
+      clones[index].setAttribute(property, style.getPropertyValue(property));
+    }
+    for (const attribute of ["tabindex", "role", "aria-label", "class"]) {
+      clones[index].removeAttribute(attribute);
+    }
+  });
+  const image = svgElement("svg", {
+    viewBox: "0 0 480 332", width: 960, height: 664, role: "img",
+    "aria-labelledby": "image-title"
+  });
+  image.append(
+    svgElement("title", { id: "image-title" }, title),
+    svgElement("rect", { width: 480, height: 332, fill: "white" }),
+    svgElement("text", {
+      x: 240, y: 23, "text-anchor": "middle", fill: "#202b3c",
+      "font-family": "system-ui, sans-serif", "font-size": 16, "font-weight": 600
+    }, title)
+  );
+  const drawing = svgElement("g", { transform: "translate(0 32)" });
+  drawing.append(...copy.childNodes);
+  image.append(drawing);
+  return new Blob([new XMLSerializer().serializeToString(image)], { type: "image/svg+xml;charset=utf-8" });
+}
+
+async function rasterImage(svgBlob, format) {
+  const url = URL.createObjectURL(svgBlob);
+  try {
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("Unable to render the image."));
+      image.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = 960;
+    canvas.height = 664;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Image export is unavailable in this browser.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob && blob.type === `image/${format}`) resolve(blob);
+        else reject(new Error("This image format is unavailable in your browser."));
+      }, `image/${format}`, 0.95);
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+exportButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    if (points.length === 0) return;
+    const chart = button.dataset.chart;
+    const format = document.querySelector(`#${chart}-format`).value;
+    button.disabled = true;
+    exportStatus.classList.remove("error");
+    exportStatus.textContent = "Preparing image...";
+    try {
+      const title = document.querySelector(`#${chart}-heading`).textContent;
+      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), title);
+      const blob = format === "svg" ? svgBlob : await rasterImage(svgBlob, format);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${chart}-chart.${format === "jpeg" ? "jpg" : format}`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      // Give the browser time to start the download before releasing the URL.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      exportStatus.textContent = `Exported ${title.toLowerCase()} as ${format.toUpperCase()}.`;
+    } catch (error) {
+      exportStatus.classList.add("error");
+      exportStatus.textContent = `Export failed: ${error.message}`;
+    } finally {
+      button.disabled = points.length === 0;
+    }
+  });
+});
 
 render();
 showStatus("No data yet. Import a CSV or add a point.");

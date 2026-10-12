@@ -9,7 +9,7 @@ main { max-width: 1080px; margin: 36px auto; padding: 0 20px; }
 h1 { margin: 0; font-size: 28px; letter-spacing: -1px; }
 header p { margin: 4px 0 22px; color: #647184; }
 .controls, .chart { background: white; border: 1px solid #dce2ea; border-radius: 8px; padding: 20px; }
-input, button { font: inherit; }
+input, button, select { font: inherit; }
 #csv-help, .hint, footer { color: #647184; font-size: 13px; }
 #csv-help { margin: 6px 0 18px; }
 form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
@@ -19,7 +19,14 @@ button { padding: 8px 18px; border: 0; border-radius: 4px; background: #245bc5; 
 button:hover { background: #1948a6; }
 :focus-visible { outline: 2px solid #245bc5; outline-offset: 3px; }
 #status { min-height: 24px; margin: 12px 0 0; font-size: 13px; }
-#status.error { color: #b42318; }
+#status.error, #export-status.error { color: #b42318; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.scale-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.scale-controls button[aria-pressed="true"] { background: #245bc5; color: white; }
+#scale-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
+.export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
+select { padding: 7px; border: 1px solid #bac4d2; border-radius: 4px; background: white; color: inherit; }
+#export-status { min-height: 20px; font-size: 13px; }
 .hint { margin: 20px 0 10px; }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
