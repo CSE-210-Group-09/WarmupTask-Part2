@@ -11,6 +11,7 @@ const deleteDialog = document.querySelector("#delete-dialog");
 const deleteMessage = document.querySelector("#delete-message");
 const logButtons = { x: document.querySelector("#log-x"), y: document.querySelector("#log-y") };
 const logScale = { x: false, y: false };
+const axisLabelInputs = { x: document.querySelector("#x-label"), y: document.querySelector("#y-label") };
 const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
@@ -145,6 +146,16 @@ function dataRange(key) {
   return [min, max];
 }
 
+// Use the typed label, or X/Y when blank; log axes keep their "(log)" note.
+function axisLabel(key) {
+  const text = axisLabelInputs[key].value.trim() || key.toUpperCase();
+  return logScale[key] ? `${text} (log)` : text;
+}
+
+for (const key of ["x", "y"]) {
+  axisLabelInputs[key].addEventListener("input", render);
+}
+
 for (const key of ["x", "y"]) {
   logButtons[key].addEventListener("click", () => {
     logScale[key] = !logScale[key];
@@ -176,7 +187,8 @@ function drawChart(svg, connectPoints) {
   }
 
   // Use fixed SVG coordinates; CSS scales the chart to fit its container.
-  const left = 84, right = 438, top = 20, bottom = 252;
+  // The left margin fits the widest tick label (such as -1.23e+300) beside the rotated Y label.
+  const left = 96, right = 438, top = 20, bottom = 252;
   const [xMin, xMax] = dataRange("x");
   const [yMin, yMax] = dataRange("y");
   const xAxis = createAxis(xMin, xMax, logScale.x);
@@ -193,14 +205,23 @@ function drawChart(svg, connectPoints) {
     const x = left + ratio * (right - left);
     svg.append(svgElement("text", { x, y: bottom + 22, "text-anchor": "middle" }, formatTick(xAxis.tick(ratio))));
   }
+  let widestYTick = 0;
   for (const ratio of yAxis.tickRatios) {
     const y = bottom - ratio * (bottom - top);
-    svg.append(svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, formatTick(yAxis.tick(ratio))));
+    const tick = svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, formatTick(yAxis.tick(ratio)));
+    svg.append(tick);
+    widestYTick = Math.max(widestYTick, tick.getBBox().width);
   }
+  // Run the Y label up the left side, just clear of the widest tick value.
+  const yLabelX = Math.max(14, left - 10 - widestYTick - 6);
+  const middleY = (top + bottom) / 2;
   svg.append(
     svgElement("path", { d: `M ${left} ${top} V ${bottom} H ${right}`, class: "axis" }),
-    svgElement("text", { x: (left + right) / 2, y: 296, "text-anchor": "middle" }, logScale.x ? "X (log)" : "X"),
-    svgElement("text", { x: 14, y: 16 }, logScale.y ? "Y (log)" : "Y")
+    svgElement("text", { x: (left + right) / 2, y: 296, "text-anchor": "middle", class: "axis-label" }, axisLabel("x")),
+    svgElement("text", {
+      x: yLabelX, y: middleY, "text-anchor": "middle", class: "axis-label",
+      transform: `rotate(-90 ${yLabelX} ${middleY})`
+    }, axisLabel("y"))
   );
 
   // The line chart adds a polyline; both chart types share the remaining code.
