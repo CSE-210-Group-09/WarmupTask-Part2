@@ -15,6 +15,13 @@ const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
 let pointToDelete = null;
+const showLinePoints = document.querySelector("#show-line-points");
+
+showLinePoints.addEventListener("change", () => {
+  hideTooltip();
+  drawChart(document.querySelector("#line-chart"), true);
+  exportStatus.textContent = "";
+});
 
 function showStatus(message, isError = false) {
   status.textContent = message;
@@ -208,6 +215,9 @@ function drawChart(svg, connectPoints) {
     const coordinates = points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
     svg.append(svgElement("polyline", { points: coordinates, class: "line" }));
   }
+
+  // Hiding markers leaves the line and the scatter plot unchanged.
+  if (connectPoints && !showLinePoints.checked) return;
 
   points.forEach((point) => {
     const label = `X: ${point.x}, Y: ${point.y}`;

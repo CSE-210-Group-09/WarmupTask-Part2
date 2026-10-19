@@ -24,6 +24,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .scale-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
 .scale-controls button[aria-pressed="true"] { background: #245bc5; color: white; }
 #scale-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
+.chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.chart-option input { margin: 0; }
 .export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
 select { padding: 7px; border: 1px solid #bac4d2; border-radius: 4px; background: white; color: inherit; }
 #export-status { min-height: 20px; font-size: 13px; }

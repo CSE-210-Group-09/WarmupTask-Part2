@@ -7,6 +7,7 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 
 - Import a CSV with the header `x,y` and two finite numbers per row, or add points manually.
 - Hover or focus a point to see its original values. Click it to review deletion; Cancel or Escape keeps the point.
+- Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Adding or importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
 - Choose PNG, JPEG, or SVG below either chart and click **Export image**. The download includes the chart title, current scales, labels, and points on a white background. PNG and JPEG are 960 by 664 pixels; SVG remains scalable.
