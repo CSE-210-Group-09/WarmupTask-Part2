@@ -15,6 +15,10 @@ const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
 let pointToDelete = null;
+const dataColor = document.querySelector("#data-color");
+
+dataColor.addEventListener("input", render);
+
 const showLinePoints = document.querySelector("#show-line-points");
 
 showLinePoints.addEventListener("change", () => {
@@ -213,7 +217,7 @@ function drawChart(svg, connectPoints) {
   // The line chart adds a polyline; both chart types share the remaining code.
   if (connectPoints) {
     const coordinates = points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
-    svg.append(svgElement("polyline", { points: coordinates, class: "line" }));
+    svg.append(svgElement("polyline", { points: coordinates, class: "line", stroke: dataColor.value }));
   }
 
   // Hiding markers leaves the line and the scatter plot unchanged.
@@ -222,7 +226,7 @@ function drawChart(svg, connectPoints) {
   points.forEach((point) => {
     const label = `X: ${point.x}, Y: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point",
+      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: dataColor.value,
       tabindex: 0, role: "button", "aria-label": `${label}; press Enter to review deletion`
     });
     circle.addEventListener("pointerenter", () => showTooltip(circle, point));
