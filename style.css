@@ -37,6 +37,11 @@ svg text { fill: #647184; font-size: 12px; }
 .line { fill: none; stroke: #245bc5; stroke-width: 2; }
 .point { fill: #245bc5; stroke: white; stroke-width: 2; cursor: pointer; }
 .point:hover, .point:focus { fill: #d4492c; stroke: #d4492c; outline: none; }
+/* Hidden points stay in place so hover, focus, and deletion still work along the line. */
+.point.concealed { opacity: 0; }
+.point.concealed:hover, .point.concealed:focus { opacity: 1; }
+.chart-option { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; cursor: pointer; }
+.option-help { margin: 2px 0 0; color: #647184; font-size: 12px; }
 #point-tooltip {
   position: fixed;
   z-index: 10;

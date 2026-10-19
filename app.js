@@ -14,6 +14,7 @@ const logScale = { x: false, y: false };
 const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
+const linePointsToggle = document.querySelector("#line-points");
 let pointToDelete = null;
 
 function showStatus(message, isError = false) {
@@ -206,7 +207,8 @@ function updateScaleControls() {
   scaleHelp.textContent = points.length ? descriptions.join(" ") : "Add data to change the axis scales.";
 }
 
-function drawChart(svg, connectPoints) {
+// concealPoints keeps circles interactive but invisible until hovered or focused.
+function drawChart(svg, connectPoints, concealPoints = false) {
   svg.replaceChildren();
   if (points.length === 0) {
     svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file, or add a point"));
@@ -250,7 +252,7 @@ function drawChart(svg, connectPoints) {
   points.forEach((point) => {
     const label = `X: ${point.x}, Y: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point",
+      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: concealPoints ? "point concealed" : "point",
       tabindex: 0, role: "button", "aria-label": `${label}; press Enter to review deletion`
     });
     circle.addEventListener("pointerenter", () => showTooltip(circle, point));
@@ -274,7 +276,7 @@ function render() {
   exportStatus.textContent = "";
   exportButtons.forEach((button) => { button.disabled = points.length === 0; });
   points.sort((a, b) => a.x - b.x);
-  drawChart(document.querySelector("#line-chart"), true);
+  drawChart(document.querySelector("#line-chart"), true, !linePointsToggle.checked);
   drawChart(document.querySelector("#scatter-chart"), false);
 }
 
@@ -283,7 +285,9 @@ function chartImage(svg, title) {
   const copy = svg.cloneNode(true);
   const originals = svg.querySelectorAll("*");
   const clones = copy.querySelectorAll("*");
+  const concealed = [];
   originals.forEach((element, index) => {
+    if (element.classList.contains("concealed")) concealed.push(clones[index]);
     const style = getComputedStyle(element);
     for (const property of ["fill", "stroke", "stroke-width", "font-family", "font-size", "font-weight"]) {
       clones[index].setAttribute(property, style.getPropertyValue(property));
@@ -292,6 +296,7 @@ function chartImage(svg, title) {
       clones[index].removeAttribute(attribute);
     }
   });
+  concealed.forEach((element) => element.remove()); // Exports match the visible chart.
   const image = svgElement("svg", {
     viewBox: "0 0 480 332", width: 960, height: 664, role: "img",
     "aria-labelledby": "image-title"
@@ -335,6 +340,8 @@ async function rasterImage(svgBlob, format) {
     URL.revokeObjectURL(url);
   }
 }
+
+linePointsToggle.addEventListener("change", render);
 
 exportButtons.forEach((button) => {
   button.addEventListener("click", async () => {

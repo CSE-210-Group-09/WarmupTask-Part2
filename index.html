@@ -38,6 +38,10 @@
       <section class="chart" aria-labelledby="line-heading">
         <h2 id="line-heading">Line graph</h2>
         <svg id="line-chart" viewBox="0 0 480 300" role="group" aria-labelledby="line-heading"></svg>
+        <label class="chart-option" for="line-points">
+          <input id="line-points" type="checkbox" checked aria-describedby="line-points-help"> Show points
+        </label>
+        <p id="line-points-help" class="option-help">Hidden points still show their values on hover or keyboard focus.</p>
         <div class="export-controls">
           <label for="line-format">Image format</label>
           <select id="line-format">
