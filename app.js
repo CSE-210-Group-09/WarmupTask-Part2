@@ -1,6 +1,6 @@
 // The single data source: each object is a point, such as { x: 1, y: 3 }.
 let points = [];
-const fileInput = document.querySelector("#csv-file");
+const fileInput = document.querySelector("#data-file");
 const importButton = document.querySelector("#import-button");
 const form = document.querySelector("#point-form");
 const xInput = document.querySelector("#x-input");
@@ -21,6 +21,10 @@ function showStatus(message, isError = false) {
   status.classList.toggle("error", isError);
 }
 
+// Plain decimal or scientific notation; rejects blanks, hex, and words like "Infinity".
+const numberPattern = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
+const isNumberText = (text) => numberPattern.test(text) && Number.isFinite(Number(text));
+
 // This example accepts two numeric columns, x and y, rather than arbitrary CSV.
 function parseCSV(text) {
   const lines = text.trim().split(/\r\n|\n|\r/);
@@ -32,19 +36,53 @@ function parseCSV(text) {
   }
 
   const result = [];
-  const numberPattern = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue; // Skip blank lines.
     const cells = readCells(lines[i]);
-    if (cells.length !== 2 || cells.some((cell) =>
-      !numberPattern.test(cell) || !Number.isFinite(Number(cell))
-    )) {
+    if (cells.length !== 2 || !cells.every(isNumberText)) {
       throw new Error(`Row ${i + 1} must contain exactly two valid numbers.`);
     }
     result.push({ x: Number(cells[0]), y: Number(cells[1]) });
   }
   if (result.length === 0) throw new Error("The CSV contains no data points.");
   return result;
+}
+
+// Accept any root element containing <point> elements. Each point gives x and y
+// either as attributes, <point x="1" y="3"/>, or as children, <point><x>1</x><y>3</y></point>.
+function parseXML(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.getElementsByTagName("parsererror").length > 0) {
+    throw new Error("The XML is not well-formed.");
+  }
+
+  // Match local names so namespaced files such as <d:point> also work.
+  const pointElements = [...doc.getElementsByTagNameNS("*", "point")];
+  const result = pointElements.map((element, index) => {
+    const read = (key) => {
+      const children = [...element.children].filter((child) => child.localName === key);
+      const hasAttribute = element.hasAttribute(key);
+      if (children.length + (hasAttribute ? 1 : 0) !== 1) return null; // Missing or ambiguous.
+      const value = (hasAttribute ? element.getAttribute(key) : children[0].textContent).trim();
+      return isNumberText(value) ? Number(value) : null;
+    };
+    const x = read("x");
+    const y = read("y");
+    if (x === null || y === null) {
+      throw new Error(`Point ${index + 1} must contain exactly one valid number for x and for y.`);
+    }
+    return { x, y };
+  });
+  if (result.length === 0) throw new Error("The XML contains no <point> elements.");
+  return result;
+}
+
+// Choose a parser by file extension, falling back to content for unnamed types.
+function parseFile(name, text) {
+  const extension = name.toLowerCase().split(".").pop();
+  if (extension === "xml") return parseXML(text);
+  if (extension === "csv") return parseCSV(text);
+  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSV(text);
 }
 
 importButton.addEventListener("click", () => fileInput.click());
@@ -55,7 +93,7 @@ fileInput.addEventListener("change", async () => {
   importButton.disabled = true;
   try {
     const text = await file.text(); // Read the local file without uploading it.
-    points = parseCSV(text); // Replace data only after every row is valid.
+    points = parseFile(file.name, text); // Replace data only after every point is valid.
     render();
     showStatus(`Imported ${file.name}. Points: ${points.length}.`);
   } catch (error) {
@@ -171,7 +209,7 @@ function updateScaleControls() {
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (points.length === 0) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or add a point"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file, or add a point"));
     return;
   }
 
@@ -330,4 +368,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV or add a point.");
+showStatus("No data yet. Import a CSV or XML file, or add a point.");

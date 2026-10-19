@@ -1,11 +1,21 @@
 # Warm-Up-Graphing-Tool
 
-A small, dependency-free CSV plotting website with linked line and scatter plots.
+A small, dependency-free CSV and XML plotting website with linked line and scatter plots.
 Open `index.html` in a browser, or serve this folder with any static web server.
 
 ## Use
 
 - Import a CSV with the header `x,y` and two finite numbers per row, or add points manually.
+- Import an XML file whose root contains `<point>` elements. Each point gives `x` and `y` either as attributes or as child elements (see `sample.xml`); both forms may be mixed in one file:
+
+  ```xml
+  <points>
+    <point x="1" y="3"/>
+    <point><x>2</x><y>5</y></point>
+  </points>
+  ```
+
+  Every point must have exactly one numeric `x` and `y`. A malformed file or invalid point is rejected and the current data is kept.
 - Hover or focus a point to see its original values. Click it to review deletion; Cancel or Escape keeps the point.
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Adding or importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
@@ -19,8 +29,8 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 - `index.html`: page controls and chart containers.
 - `style.css`: layout and chart appearance.
 - `scale.js`: numeric scaling and tick formatting.
-- `app.js`: CSV input, chart interactions, and image export.
-- `sample.csv`: example dataset.
+- `app.js`: CSV and XML input, chart interactions, and image export.
+- `sample.csv`, `sample.xml`: the same example dataset in each format.
 
 ## Numeric regression checks
 

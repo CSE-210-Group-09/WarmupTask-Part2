@@ -10,8 +10,8 @@ h1 { margin: 0; font-size: 28px; letter-spacing: -1px; }
 header p { margin: 4px 0 22px; color: #647184; }
 .controls, .chart { background: white; border: 1px solid #dce2ea; border-radius: 8px; padding: 20px; }
 input, button, select { font: inherit; }
-#csv-help, .hint, footer { color: #647184; font-size: 13px; }
-#csv-help { margin: 6px 0 18px; }
+#import-help, .hint, footer { color: #647184; font-size: 13px; }
+#import-help { margin: 6px 0 18px; }
 form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
 form label { display: flex; align-items: center; gap: 8px; }
 input[type="number"] { width: 116px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
