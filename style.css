@@ -26,6 +26,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 input[type="text"] { width: 160px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
 .appearance-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; }
 input[type="color"] { width: 44px; height: 36px; padding: 3px; border: 1px solid #bac4d2; border-radius: 4px; background: white; cursor: pointer; }
+.zoom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+#zoom-status { margin: 0; font-size: 13px; }
+#zoom-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
+/* Charts take pointer input only once there is data: drag pans while zoomed. */
+svg.zoomable { touch-action: none; }
+svg.zoomed { cursor: grab; }
+svg.zoomed.panning { cursor: grabbing; }
 .chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
 .chart-option input { margin: 0; }
 .export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }

@@ -22,6 +22,7 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 - Pick **Data color** to recolor the line and the points in both charts. The choice persists across imports and scale changes, and applies to PNG, JPEG, and SVG exports. Refreshing restores the default blue. The current CSV format supports one data series; per-series color controls will be needed when multiple-column plotting is added.
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
+- Zoom with **Ctrl + scroll** (**⌘ + scroll** on a Mac) or a trackpad pinch over either chart, or with the **Zoom in** and **Zoom out** buttons. Drag a zoomed chart to pan. **Reset zoom** shows all points again. Both charts share the view, exported images show it, and importing or switching an axis scale resets it. See [docs/zoom-and-pan.md](docs/zoom-and-pan.md).
 - Type X- and Y-axis labels to replace the default X and Y on both charts and in exported images. Blank labels fall back to X and Y.
 - Choose PNG, JPEG, or SVG below either chart and click **Export image**. The download includes the chart title, current scales, labels, and points on a white background. PNG and JPEG are 960 by 664 pixels; SVG remains scalable.
 
@@ -33,11 +34,12 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 - `index.html`: page controls and chart containers.
 - `style.css`: layout and chart appearance.
 - `scale.js`: numeric scaling and tick formatting.
+- `view.js`: zoom and pan state.
 - `app.js`: CSV and XML input, chart interactions, and image export.
 - `sample.csv`, `sample.xml`: the same example dataset in each format.
 - `test-data/`: a larger growth dataset in both formats.
 
-## Numeric regression checks
+## Tests
 
-With Node.js installed, run `node --test tests/scale.test.cjs`.
+Unit tests need only Node.js: `node --test tests/*.test.cjs`. Browser tests use Playwright: `npm install`, `npx playwright install chromium`, then `npm run test:e2e`. See [docs/testing.md](docs/testing.md).
 No dependencies or build step are required to use the website.

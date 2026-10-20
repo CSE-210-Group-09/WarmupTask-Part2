@@ -12,6 +12,14 @@ const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
 const dataColor = document.querySelector("#data-color");
+const zoomButtons = {
+  in: document.querySelector("#zoom-in"),
+  out: document.querySelector("#zoom-out"),
+  reset: document.querySelector("#zoom-reset")
+};
+const zoomStatus = document.querySelector("#zoom-status");
+// Both charts share one view, so they always show the same part of the data.
+let view = fullView();
 
 dataColor.addEventListener("input", render);
 
@@ -110,6 +118,7 @@ fileInput.addEventListener("change", async () => {
   try {
     const text = await file.text(); // Read the local file without uploading it.
     points = parseFile(file.name, text); // Replace data only after every point is valid.
+    view = fullView();
     render();
     showStatus(`Imported ${file.name}. Points: ${points.length}.`);
   } catch (error) {
@@ -173,6 +182,7 @@ for (const key of ["x", "y"]) {
 for (const key of ["x", "y"]) {
   logButtons[key].addEventListener("click", () => {
     logScale[key] = !logScale[key];
+    view = fullView(); // View fractions mean different values on the other scale.
     render();
   });
 }
@@ -193,6 +203,10 @@ function updateScaleControls() {
   scaleHelp.textContent = points.length ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
 }
 
+// Plot area in the fixed SVG coordinates; CSS scales the chart to fit its container.
+// The left margin fits the widest tick label (such as -1.23e+300) beside the rotated Y label.
+const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
+
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (points.length === 0) {
@@ -200,32 +214,32 @@ function drawChart(svg, connectPoints) {
     return;
   }
 
-  // Use fixed SVG coordinates; CSS scales the chart to fit its container.
-  // The left margin fits the widest tick label (such as -1.23e+300) beside the rotated Y label.
-  const left = 96, right = 438, top = 20, bottom = 252;
-  const [xMin, xMax] = dataRange("x");
-  const [yMin, yMax] = dataRange("y");
-  const xAxis = createAxis(xMin, xMax, logScale.x);
-  const yAxis = createAxis(yMin, yMax, logScale.y);
-  const scaleX = (x) => left + xAxis.position(x) * (right - left);
-  const scaleY = (y) => bottom - yAxis.position(y) * (bottom - top);
+  const { left, right, top, bottom } = PLOT;
+  const xAxis = createAxis(...dataRange("x"), logScale.x);
+  const yAxis = createAxis(...dataRange("y"), logScale.y);
+  // Map through the full axis first, then through the zoomed view.
+  const scaleX = (x) => left + viewPosition(xAxis.position(x), view.x) * (right - left);
+  const scaleY = (y) => bottom - viewPosition(yAxis.position(y), view.y) * (bottom - top);
 
   // Draw the grid separately so a constant axis needs just one centered label.
   for (let i = 0; i <= 4; i++) {
     const y = bottom - i / 4 * (bottom - top);
     svg.append(svgElement("line", { x1: left, y1: y, x2: right, y2: y, class: "grid" }));
   }
-  for (const ratio of xAxis.tickRatios) {
+  // Ticks label the visible range; formatTicks adds digits as the view narrows.
+  const xLabels = formatTicks(xAxis.tickRatios.map((ratio) => xAxis.tick(viewRatio(ratio, view.x))));
+  xAxis.tickRatios.forEach((ratio, i) => {
     const x = left + ratio * (right - left);
-    svg.append(svgElement("text", { x, y: bottom + 22, "text-anchor": "middle" }, formatTick(xAxis.tick(ratio))));
-  }
+    svg.append(svgElement("text", { x, y: bottom + 22, "text-anchor": "middle" }, xLabels[i]));
+  });
+  const yLabels = formatTicks(yAxis.tickRatios.map((ratio) => yAxis.tick(viewRatio(ratio, view.y))));
   let widestYTick = 0;
-  for (const ratio of yAxis.tickRatios) {
+  yAxis.tickRatios.forEach((ratio, i) => {
     const y = bottom - ratio * (bottom - top);
-    const tick = svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, formatTick(yAxis.tick(ratio)));
+    const tick = svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, yLabels[i]);
     svg.append(tick);
     widestYTick = Math.max(widestYTick, tick.getBBox().width);
-  }
+  });
   // Run the Y label up the left side, just clear of the widest tick value.
   const yLabelX = Math.max(14, left - 10 - widestYTick - 6);
   const middleY = (top + bottom) / 2;
@@ -239,15 +253,28 @@ function drawChart(svg, connectPoints) {
   );
 
   // The line chart adds a polyline; both chart types share the remaining code.
+  // When zoomed, the line runs past the plot area, so it is clipped to it
+  // (1px wider than the plot, so the stroke at the outermost points stays whole).
   if (connectPoints) {
+    const clipId = `${svg.id}-clip`;
+    const clip = svgElement("clipPath", { id: clipId });
+    clip.append(svgElement("rect", { x: left - 1, y: top - 1, width: right - left + 2, height: bottom - top + 2 }));
+    const defs = svgElement("defs", {});
+    defs.append(clip);
     const coordinates = points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
-    svg.append(svgElement("polyline", { points: coordinates, class: "line", stroke: dataColor.value }));
+    svg.append(defs, svgElement("polyline", {
+      points: coordinates, class: "line", stroke: dataColor.value, "clip-path": `url(#${clipId})`
+    }));
   }
 
   // Hiding markers leaves the line and the scatter plot unchanged.
   if (connectPoints && !showLinePoints.checked) return;
 
+  // Only points inside the view get a marker, so zooming in on 100+ points
+  // leaves fewer, separated markers (and fewer stops for keyboard focus).
+  const inside = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
   points.forEach((point) => {
+    if (!inside(scaleX(point.x), left, right) || !inside(scaleY(point.y), top, bottom)) return;
     const label = `X: ${point.x}, Y: ${point.y}`;
     const circle = svgElement("circle", {
       cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: dataColor.value,
@@ -262,9 +289,119 @@ function drawChart(svg, connectPoints) {
   });
 }
 
+// A constant axis has nothing to zoom into: its single value stays centered.
+function zoomableAxes() {
+  return {
+    x: points.length > 0 && dataRange("x")[0] !== dataRange("x")[1],
+    y: points.length > 0 && dataRange("y")[0] !== dataRange("y")[1]
+  };
+}
+
+function zoomAt(anchorX, anchorY, factor) {
+  const zoomable = zoomableAxes();
+  if (zoomable.x) view.x = zoomRange(view.x, anchorX, factor);
+  if (zoomable.y) view.y = zoomRange(view.y, anchorY, factor);
+  scheduleRender();
+}
+
+function updateZoomControls() {
+  const zoomable = zoomableAxes();
+  const canZoom = zoomable.x || zoomable.y;
+  const spans = [zoomable.x && view.x, zoomable.y && view.y].filter(Boolean).map(([a, b]) => b - a);
+  zoomButtons.in.disabled = !canZoom || spans.every((span) => span <= MIN_SPAN * 1.0001);
+  zoomButtons.out.disabled = !canZoom || isFullView(view);
+  zoomButtons.reset.disabled = isFullView(view);
+  for (const svg of document.querySelectorAll(".charts svg")) {
+    svg.classList.toggle("zoomable", canZoom);
+    svg.classList.toggle("zoomed", !isFullView(view));
+  }
+  if (points.length === 0) {
+    zoomStatus.textContent = "";
+  } else if (isFullView(view)) {
+    zoomStatus.textContent = canZoom ? "Showing all points." : "Showing all points. A single value can't be zoomed.";
+  } else {
+    const xAxis = createAxis(...dataRange("x"), logScale.x);
+    const yAxis = createAxis(...dataRange("y"), logScale.y);
+    const [x0, x1] = formatTicks(view.x.map((ratio) => xAxis.tick(ratio)));
+    const [y0, y1] = formatTicks(view.y.map((ratio) => yAxis.tick(ratio)));
+    zoomStatus.textContent = `Zoomed ${formatTick(zoomLevel(view), 2)}x: X ${x0} to ${x1}, Y ${y0} to ${y1}.`;
+  }
+}
+
+// Redraw at most once per frame while the wheel or a drag fires many events.
+let renderFrame = 0;
+function scheduleRender() {
+  if (!renderFrame) renderFrame = requestAnimationFrame(() => { renderFrame = 0; render(); });
+}
+
+// Pointer position in plot fractions: 0 at the left/bottom edge, 1 at the right/top.
+function plotPosition(svg, event) {
+  const box = svg.getBoundingClientRect();
+  const viewBox = svg.viewBox.baseVal;
+  const x = (event.clientX - box.left) * viewBox.width / box.width;
+  const y = (event.clientY - box.top) * viewBox.height / box.height;
+  return {
+    x: (x - PLOT.left) / (PLOT.right - PLOT.left),
+    y: (PLOT.bottom - y) / (PLOT.bottom - PLOT.top),
+    inside: x >= PLOT.left && x <= PLOT.right && y >= PLOT.top && y <= PLOT.bottom
+  };
+}
+
+for (const svg of document.querySelectorAll(".charts svg")) {
+  // Ctrl/Cmd + wheel zooms (trackpad pinch sends the same event); a plain
+  // wheel still scrolls the page, so the charts never trap scrolling.
+  svg.addEventListener("wheel", (event) => {
+    if (!(event.ctrlKey || event.metaKey) || points.length === 0) return;
+    const position = plotPosition(svg, event);
+    if (!position.inside) return;
+    event.preventDefault();
+    hideTooltip();
+    const factor = Math.exp(Math.max(-1, Math.min(1, event.deltaY * 0.002)));
+    zoomAt(position.x, position.y, factor);
+  }, { passive: false });
+
+  // Drag inside the plot to pan; it only does something when zoomed in.
+  let drag = null;
+  svg.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || points.length === 0 || isFullView(view)) return;
+    const position = plotPosition(svg, event);
+    if (!position.inside) return;
+    drag = { start: position, view: { x: [...view.x], y: [...view.y] } };
+    svg.setPointerCapture(event.pointerId);
+    svg.classList.add("panning");
+    hideTooltip();
+  });
+  svg.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    const position = plotPosition(svg, event);
+    // Pan from the starting view so rounding never accumulates over a long drag.
+    view = {
+      x: panRange(drag.view.x, position.x - drag.start.x),
+      y: panRange(drag.view.y, position.y - drag.start.y)
+    };
+    scheduleRender();
+  });
+  const endDrag = () => {
+    drag = null;
+    svg.classList.remove("panning");
+  };
+  svg.addEventListener("pointerup", endDrag);
+  svg.addEventListener("pointercancel", endDrag);
+  svg.addEventListener("lostpointercapture", endDrag);
+}
+
+// The buttons zoom around the center, for keyboard users and mice without a wheel.
+zoomButtons.in.addEventListener("click", () => zoomAt(0.5, 0.5, 0.5));
+zoomButtons.out.addEventListener("click", () => zoomAt(0.5, 0.5, 2));
+zoomButtons.reset.addEventListener("click", () => {
+  view = fullView();
+  render();
+});
+
 function render() {
   hideTooltip();
   updateScaleControls();
+  updateZoomControls();
   exportStatus.textContent = "";
   exportButtons.forEach((button) => { button.disabled = points.length === 0; });
   points.sort((a, b) => a.x - b.x);

@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const { createAxis, formatTick } = vm.runInNewContext(
-  fs.readFileSync(path.join(__dirname, "../scale.js"), "utf8") + "; ({ createAxis, formatTick });"
+const { createAxis, formatTick, formatTicks } = vm.runInNewContext(
+  fs.readFileSync(path.join(__dirname, "../scale.js"), "utf8") + "; ({ createAxis, formatTick, formatTicks });"
 );
 
 test("rounded labels never overflow to Infinity", () => {
@@ -78,5 +78,20 @@ test("log axes remain finite across the full positive numeric range", () => {
 test("invalid bounds and nonpositive logarithmic domains are rejected", () => {
   for (const bounds of [[-1, 1, true], [0, 1, true], [Infinity, Infinity], [NaN, 1], [2, 1]]) {
     assert.throws(() => createAxis(...bounds));
+  }
+});
+
+test("zoomed tick labels gain digits until different values read differently", () => {
+  // At full view, three significant digits are enough.
+  assert.deepEqual(formatTicks([0, 25, 50, 75, 100]), ["0", "25", "50", "75", "100"]);
+  // Zoomed in on 1000.0-1000.4, three digits would label every tick "1e+3".
+  const labels = formatTicks([1000, 1000.1, 1000.2, 1000.3, 1000.4]);
+  assert.equal(new Set(labels).size, 5);
+  assert.deepEqual(labels, ["1000", "1000.1", "1000.2", "1000.3", "1000.4"]);
+  // Equal values (a constant axis) keep one shared label.
+  assert.deepEqual(formatTicks([7, 7]), ["7", "7"]);
+  // Extremes still never overflow.
+  for (const label of formatTicks([Number.MAX_VALUE * 0.999, Number.MAX_VALUE])) {
+    assert.doesNotMatch(label, /Infinity|NaN/);
   }
 });
