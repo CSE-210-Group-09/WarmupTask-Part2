@@ -104,6 +104,6 @@ test("files with mismatched rows or missing fields are rejected and the chart is
   await importFile(page, "short.csv", "day,a,b\n1,2,3\n2,4");
   await expect(page.locator("#status")).toHaveText("Row 3 must contain exactly 3 valid numbers.");
   await importFile(page, "gap.xml", '<p><point day="1" a="2" b="3"/><point day="2" a="4"/></p>');
-  await expect(page.locator("#status")).toHaveText("Point 2 must contain exactly one valid number for day, for a and for b.");
+  await expect(page.locator("#status")).toHaveText("Point 2 must contain exactly one valid number for each of: day, a, b.");
   await expect(lines(page)).toHaveCount(2);
 });

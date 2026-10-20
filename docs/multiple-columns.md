@@ -49,7 +49,7 @@ Alternatives: a multi-select list (hard to use with a mouse, hard to tell what's
 
 ### 4. Per-line colors replace the single "Data color" picker
 
-The README already noted that per-series color controls would be needed for multiple columns. Each line's color picker sits next to its checkbox. The first line keeps the original blue (#245bc5). Further lines take the Okabe-Ito palette, chosen because it stays distinguishable for the common forms of color blindness. Chosen colors are remembered by column name across imports.
+The README already noted that per-series color controls would be needed for multiple columns. Each line's color picker sits next to its checkbox. A column's default color is the palette color for its position: the original blue (#245bc5) first, then the Okabe-Ito palette, chosen because it stays distinguishable for the common forms of color blindness. Colors the user picks are remembered by column name across imports. Defaults don't avoid a color the user picked for another line; that keeps the rule to one line of code, and the user can pick again.
 
 Alternatives:
 - **Keep one global color and derive shades:** shades of one hue are hard to tell apart beyond two lines.
@@ -69,6 +69,6 @@ With arbitrary columns, "X" and "Y" stop being informative. The defaults are now
 
 ## Testing
 
-- **Unit (`tests/data.test.cjs`):** CSV tables (header order, quoting, scientific notation, the old `x,y` format) and every CSV error; XML records (field order, every validation error, messages listing the columns); default and carried-over selections; series sorted by X; color assignment (original blue first, distinct colors, user choices kept, more lines than palette colors).
+- **Unit (`tests/data.test.cjs`):** CSV tables (header order, quoting, scientific notation, the old `x,y` format) and every CSV error; XML records (field order, every validation error, messages listing the columns); default and carried-over selections; series sorted by X; color assignment (original blue first, user choices kept, palette by position, cycling past the palette).
 - **Browser (`e2e/pick-columns.spec.js`):** the issue's three-column example plots two colored lines with a legend; tooltips name columns; unchecking removes a line and the last line is locked; changing X re-plots; per-line colors survive re-import; CSV and XML versions plot identically; zoom, log scale and SVG export with two lines; mismatched rows and missing XML fields are rejected and the chart is kept.
 - **Updated:** `customize-appearance.spec.js` uses the per-line color picker and expects column-name label defaults.

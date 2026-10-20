@@ -5,8 +5,10 @@ let table = null;
 let selection = null;
 // Derived from the table and selection: one { name, color, points } per Y column.
 let series = [];
-// Colors the user picked, by column name, so they survive re-imports.
+// Colors the user picked, by column name, so they survive re-imports, and the
+// resulting color of every column that can be a line.
 const chosenColors = {};
+let lineColors = {};
 const hasData = () => series.length > 0;
 const allPoints = () => series.flatMap((line) => line.points);
 const fileInput = document.querySelector("#data-file");
@@ -80,8 +82,8 @@ function parseFile(name, text) {
 
 // Rebuild the plotted series after the data, the selection or a color changes.
 function updateSeries() {
-  const colors = assignColors(table.columns.filter((column) => column !== selection.x), chosenColors);
-  series = seriesFor(table, selection).map((line) => ({ ...line, color: colors[line.name] }));
+  lineColors = assignColors(table.columns.filter((column) => column !== selection.x), chosenColors);
+  series = seriesFor(table, selection).map((line) => ({ ...line, color: lineColors[line.name] }));
 }
 
 // The column picker: an X column and a checkbox and color per possible line.
@@ -89,8 +91,6 @@ function buildColumnControls() {
   columnControls.hidden = !table;
   if (!table) return;
   xColumnSelect.replaceChildren(...table.columns.map((name) => new Option(name, name, false, name === selection.x)));
-  const colors = Object.fromEntries(series.map((line) => [line.name, line.color]));
-  const unselected = assignColors(table.columns.filter((column) => column !== selection.x), chosenColors);
   yColumnList.replaceChildren(...table.columns.filter((name) => name !== selection.x).map((name) => {
     const row = document.createElement("div");
     row.className = "series-option";
@@ -110,7 +110,7 @@ function buildColumnControls() {
     label.append(box, ` ${name}`);
     const color = document.createElement("input");
     color.type = "color";
-    color.value = colors[name] ?? unselected[name];
+    color.value = lineColors[name];
     color.setAttribute("aria-label", `Color for ${name}`);
     color.addEventListener("input", () => {
       chosenColors[name] = color.value;
@@ -125,11 +125,8 @@ function buildColumnControls() {
 
 // At least one line stays selected: its checkbox can't be unchecked.
 function lockLastLine() {
-  const boxes = [...yColumnList.querySelectorAll("input[type=checkbox]")];
-  const checked = boxes.filter((box) => box.checked);
-  for (const box of boxes) {
-    box.disabled = checked.length === 1 && box.checked;
-    box.title = box.disabled ? "At least one line must be shown." : "";
+  for (const box of yColumnList.querySelectorAll("input[type=checkbox]")) {
+    box.disabled = box.checked && selection.ys.length === 1;
   }
 }
 

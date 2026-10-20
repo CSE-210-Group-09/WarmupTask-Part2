@@ -36,12 +36,6 @@ function parseCSVTable(text) {
   return { columns, rows };
 }
 
-// "for x and for y", "for day, for cityA and for cityB".
-function forEach(names) {
-  const parts = names.map((name) => `for ${name}`);
-  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}
-
 // XML points arrive as records: one array of [name, text] fields per <point>,
 // in document order (app.js reads them from the DOM). The first point names
 // the columns; every point must give each of them exactly once, as a number.
@@ -56,25 +50,18 @@ function tableFromRecords(records) {
     });
     const extra = fields.some(([name]) => !columns.includes(name));
     if (row.includes(null) || extra) {
-      throw new Error(`Point ${index + 1} must contain exactly one valid number ${forEach(columns)}.`);
+      throw new Error(`Point ${index + 1} must contain exactly one valid number for each of: ${columns.join(", ")}.`);
     }
     return row;
   });
   return { columns, rows };
 }
 
-// Start with a column named x (else the first column) on the X axis and every
-// other column as a series, so a two-column x,y file plots as before.
-function defaultSelection(columns) {
-  const x = columns.includes("x") ? "x" : columns[0];
-  return { x, ys: columns.filter((column) => column !== x) };
-}
-
 // Keep what still applies after a new import or a new X column: the X column if
-// it still exists, and the Y columns still available. Fall back to the defaults.
+// it still exists, and the Y columns still available. Otherwise a column named x
+// (else the first) is X and every other column is a line, so x,y files plot as before.
 function reconcileSelection(columns, previous) {
-  const fallback = defaultSelection(columns);
-  const x = previous && columns.includes(previous.x) ? previous.x : fallback.x;
+  const x = previous && columns.includes(previous.x) ? previous.x : columns.includes("x") ? "x" : columns[0];
   const available = columns.filter((column) => column !== x);
   const ys = previous ? previous.ys.filter((column) => available.includes(column)) : [];
   return { x, ys: ys.length ? ys : available };
@@ -95,23 +82,8 @@ function seriesFor(table, selection) {
 // which stays distinguishable for the common forms of color blindness.
 const SERIES_COLORS = ["#245bc5", "#e69f00", "#009e73", "#cc79a7", "#56b4e9", "#d55e00", "#0072b2", "#f0e442"];
 
-// A color for each column: one the user chose earlier, otherwise the first
-// palette color not already in use (cycling once the palette runs out).
+// A color for each column: the one the user chose, else the palette color for
+// its position (cycling if there are more columns than colors).
 function assignColors(names, chosen) {
-  const colors = {};
-  const used = new Set();
-  for (const name of names) {
-    if (chosen[name]) {
-      colors[name] = chosen[name];
-      used.add(chosen[name]);
-    }
-  }
-  let next = 0;
-  for (const name of names) {
-    if (colors[name]) continue;
-    const free = SERIES_COLORS.find((color) => !used.has(color));
-    colors[name] = free ?? SERIES_COLORS[next++ % SERIES_COLORS.length];
-    used.add(colors[name]);
-  }
-  return colors;
+  return Object.fromEntries(names.map((name, i) => [name, chosen[name] ?? SERIES_COLORS[i % SERIES_COLORS.length]]));
 }
