@@ -290,42 +290,25 @@ function drawChart(svg, connectPoints) {
 }
 
 // A constant axis has nothing to zoom into: its single value stays centered.
-function zoomableAxes() {
-  return {
-    x: points.length > 0 && dataRange("x")[0] !== dataRange("x")[1],
-    y: points.length > 0 && dataRange("y")[0] !== dataRange("y")[1]
-  };
+function zoomable(key) {
+  const [min, max] = dataRange(key);
+  return min !== max;
 }
 
 function zoomAt(anchorX, anchorY, factor) {
-  const zoomable = zoomableAxes();
-  if (zoomable.x) view.x = zoomRange(view.x, anchorX, factor);
-  if (zoomable.y) view.y = zoomRange(view.y, anchorY, factor);
+  if (zoomable("x")) view.x = zoomRange(view.x, anchorX, factor);
+  if (zoomable("y")) view.y = zoomRange(view.y, anchorY, factor);
   scheduleRender();
 }
 
 function updateZoomControls() {
-  const zoomable = zoomableAxes();
-  const canZoom = zoomable.x || zoomable.y;
-  const spans = [zoomable.x && view.x, zoomable.y && view.y].filter(Boolean).map(([a, b]) => b - a);
-  zoomButtons.in.disabled = !canZoom || spans.every((span) => span <= MIN_SPAN * 1.0001);
-  zoomButtons.out.disabled = !canZoom || isFullView(view);
-  zoomButtons.reset.disabled = isFullView(view);
-  for (const svg of document.querySelectorAll(".charts svg")) {
-    svg.classList.toggle("zoomable", canZoom);
-    svg.classList.toggle("zoomed", !isFullView(view));
-  }
-  if (points.length === 0) {
-    zoomStatus.textContent = "";
-  } else if (isFullView(view)) {
-    zoomStatus.textContent = canZoom ? "Showing all points." : "Showing all points. A single value can't be zoomed.";
-  } else {
-    const xAxis = createAxis(...dataRange("x"), logScale.x);
-    const yAxis = createAxis(...dataRange("y"), logScale.y);
-    const [x0, x1] = formatTicks(view.x.map((ratio) => xAxis.tick(ratio)));
-    const [y0, y1] = formatTicks(view.y.map((ratio) => yAxis.tick(ratio)));
-    zoomStatus.textContent = `Zoomed ${formatTick(zoomLevel(view), 2)}x: X ${x0} to ${x1}, Y ${y0} to ${y1}.`;
-  }
+  const full = isFullView(view);
+  const canZoom = points.length > 0 && (zoomable("x") || zoomable("y"));
+  zoomButtons.in.disabled = !canZoom || zoomLevel(view) >= 1 / MIN_SPAN - 1e-6;
+  zoomButtons.out.disabled = full;
+  zoomButtons.reset.disabled = full;
+  for (const svg of document.querySelectorAll(".charts svg")) svg.classList.toggle("zoomed", !full);
+  zoomStatus.textContent = points.length === 0 ? "" : full ? "Showing all points." : `Zoomed ${formatTick(zoomLevel(view), 2)}x.`;
 }
 
 // Redraw at most once per frame while the wheel or a drag fires many events.
@@ -368,7 +351,6 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     if (!position.inside) return;
     drag = { start: position, view: { x: [...view.x], y: [...view.y] } };
     svg.setPointerCapture(event.pointerId);
-    svg.classList.add("panning");
     hideTooltip();
   });
   svg.addEventListener("pointermove", (event) => {
@@ -381,10 +363,7 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     };
     scheduleRender();
   });
-  const endDrag = () => {
-    drag = null;
-    svg.classList.remove("panning");
-  };
+  const endDrag = () => { drag = null; };
   svg.addEventListener("pointerup", endDrag);
   svg.addEventListener("pointercancel", endDrag);
   svg.addEventListener("lostpointercapture", endDrag);
