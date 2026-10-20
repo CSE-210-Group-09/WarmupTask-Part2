@@ -10,12 +10,8 @@ function fullView() {
   return { x: [0, 1], y: [0, 1] };
 }
 
-function isFullRange([start, end]) {
-  return start <= 0 && end >= 1;
-}
-
 function isFullView(view) {
-  return isFullRange(view.x) && isFullRange(view.y);
+  return [view.x, view.y].every(([start, end]) => start <= 0 && end >= 1);
 }
 
 // Shift a range of the given span so it stays inside [0, 1].

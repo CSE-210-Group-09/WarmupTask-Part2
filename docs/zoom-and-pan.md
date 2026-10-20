@@ -8,7 +8,7 @@
 - **Ctrl + scroll** (**⌘ + scroll** on a Mac), or a trackpad pinch, over a chart zooms in or out around the pointer.
 - **Drag** inside a zoomed chart to pan.
 - **Zoom in / Zoom out** buttons zoom around the center, for keyboard users and mice without a wheel. **Reset zoom** returns to all points.
-- A status line reads, for example, "Zoomed 4x: X 38.3 to 75.5, Y 31.6 to 50.4."
+- A status line reads "Showing all points." or, for example, "Zoomed 4x."
 - Both charts show the same view. Exports show the current view.
 - Importing a file or switching an axis between linear and log resets the view.
 
@@ -60,4 +60,4 @@ Wheel and drag fire many events per frame. `scheduleRender` coalesces them with 
 ## Known limits
 
 - No touch pinch on phones: touch drag pans, but there is no two-finger zoom; the buttons work.
-- `touch-action: none` on charts with data means a finger on a chart pans the chart, not the page.
+- While zoomed, `touch-action: none` means a finger on a chart pans the chart, not the page; unzoomed charts scroll the page as usual.
