@@ -5,12 +5,13 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 
 ## Use
 
-- Import a CSV with the header `x,y` and two finite numbers per row, or add points manually.
-- Hover or focus a point to see its original values. Click it to review deletion; Cancel or Escape keeps the point.
+- Import a CSV with the header `x,y` and two finite numbers per row. The imported CSV is the only source of data, points can't be added or deleted on the page. To change the data, edit the CSV and import it again.
+- Hover or focus a point to see its original values.
 - Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
 - Pick **Data color** to recolor the line and the points in both charts. The choice persists across imports and scale changes, and applies to PNG, JPEG, and SVG exports. Refreshing restores the default blue. The current CSV format supports one data series; per-series color controls will be needed when multiple-column plotting is added.
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
-- An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Adding or importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
+- An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
+- Type X- and Y-axis labels to replace the default X and Y on both charts and in exported images. Blank labels fall back to X and Y.
 - Choose PNG, JPEG, or SVG below either chart and click **Export image**. The download includes the chart title, current scales, labels, and points on a white background. PNG and JPEG are 960 by 664 pixels; SVG remains scalable.
 
 All processing and image exports happen locally in the browser. Refreshing clears the data.
