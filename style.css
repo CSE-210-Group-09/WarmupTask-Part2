@@ -24,8 +24,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .label-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
 .label-controls label { display: flex; align-items: center; gap: 8px; }
 input[type="text"] { width: 160px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
-.appearance-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; }
+.column-controls { margin-top: 18px; }
+.column-controls > label { margin-right: 8px; }
+.column-controls fieldset { margin: 12px 0 0; padding: 10px 14px 12px; border: 1px solid #dce2ea; border-radius: 6px; }
+.column-controls legend { padding: 0 6px; font-size: 13px; color: #647184; }
+#y-columns { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.series-option { display: flex; align-items: center; gap: 8px; }
+.series-option label { display: flex; align-items: center; gap: 6px; }
+svg .legend text { fill: #202b3c; }
+.legend-box { fill: white; fill-opacity: 0.9; stroke: #dce2ea; }
 input[type="color"] { width: 44px; height: 36px; padding: 3px; border: 1px solid #bac4d2; border-radius: 4px; background: white; cursor: pointer; }
+.zoom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+#zoom-status { margin: 0; font-size: 13px; }
+#zoom-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
+/* While zoomed, dragging pans the chart (on touch screens too) instead of scrolling. */
+svg.zoomed { cursor: grab; touch-action: none; }
 .chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
 .chart-option input { margin: 0; }
 .export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }

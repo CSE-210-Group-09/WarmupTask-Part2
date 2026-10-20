@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<temperatures>
+  <point day="1" cityA_temp="14.2" cityB_temp="9.1"/>
+  <point><day>2</day><cityA_temp>15.0</cityA_temp><cityB_temp>9.8</cityB_temp></point>
+  <point day="3" cityA_temp="13.8" cityB_temp="10.4"/>
+  <point><day>4</day><cityA_temp>16.1</cityA_temp><cityB_temp>11.0</cityB_temp></point>
+  <point day="5" cityA_temp="17.4" cityB_temp="10.2"/>
+  <point><day>6</day><cityA_temp>18.0</cityA_temp><cityB_temp>12.5</cityB_temp></point>
+  <point day="7" cityA_temp="16.9" cityB_temp="13.1"/>
+  <point><day>8</day><cityA_temp>19.2</cityA_temp><cityB_temp>12.8</cityB_temp></point>
+  <point day="9" cityA_temp="20.5" cityB_temp="14.0"/>
+  <point><day>10</day><cityA_temp>21.1</cityA_temp><cityB_temp>15.2</cityB_temp></point>
+  <point day="11" cityA_temp="19.8" cityB_temp="14.6"/>
+  <point><day>12</day><cityA_temp>22.4</cityA_temp><cityB_temp>16.0</cityB_temp></point>
+  <point day="13" cityA_temp="23.0" cityB_temp="17.3"/>
+  <point><day>14</day><cityA_temp>21.7</cityA_temp><cityB_temp>16.8</cityB_temp></point>
+</temperatures>

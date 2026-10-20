@@ -1,0 +1,14 @@
+{
+  "name": "warm-up-graphing-tool",
+  "private": true,
+  "description": "Dependency-free CSV/XML plotting website. npm is only needed to run the tests.",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test tests/*.test.cjs",
+    "test:e2e": "playwright test",
+    "serve": "node e2e/server.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
+  }
+}

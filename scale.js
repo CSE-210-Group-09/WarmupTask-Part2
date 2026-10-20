@@ -1,8 +1,22 @@
 // Keep labels as text: converting a rounded 1.80e+308 back to a number overflows.
-function formatTick(value) {
-  const [mantissa, exponent] = value.toPrecision(3).split("e");
+function formatTick(value, precision = 3) {
+  const [mantissa, exponent] = value.toPrecision(precision).split("e");
   const compact = mantissa.includes(".") ? mantissa.replace(/0+$/, "").replace(/\.$/, "") : mantissa;
   return exponent === undefined ? compact : `${compact}e${exponent}`;
+}
+
+// Labels for a row of ticks. Three significant digits suffice at full view, but
+// a zoomed axis can show 1000.1 and 1000.2, which both round to "1e+3". Add
+// digits until different values get different labels.
+function formatTicks(values) {
+  for (let precision = 3; precision < 17; precision++) {
+    const labels = values.map((value) => formatTick(value, precision));
+    const distinct = values.every((value, i) =>
+      values.every((other, j) => value === other || labels[i] !== labels[j])
+    );
+    if (distinct) return labels;
+  }
+  return values.map((value) => formatTick(value, 17));
 }
 
 function interpolate(min, max, ratio) {
