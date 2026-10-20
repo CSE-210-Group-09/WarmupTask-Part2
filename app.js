@@ -1,21 +1,16 @@
 // The single data source: each object is a point, such as { x: 1, y: 3 }.
+// Points only come from the imported CSV, the user can't add or delete them on the page.
 let points = [];
 const fileInput = document.querySelector("#csv-file");
 const importButton = document.querySelector("#import-button");
-const form = document.querySelector("#point-form");
-const xInput = document.querySelector("#x-input");
-const yInput = document.querySelector("#y-input");
 const status = document.querySelector("#status");
 const tooltip = document.querySelector("#point-tooltip");
-const deleteDialog = document.querySelector("#delete-dialog");
-const deleteMessage = document.querySelector("#delete-message");
 const logButtons = { x: document.querySelector("#log-x"), y: document.querySelector("#log-y") };
 const logScale = { x: false, y: false };
 const axisLabelInputs = { x: document.querySelector("#x-label"), y: document.querySelector("#y-label") };
 const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
-let pointToDelete = null;
 
 function showStatus(message, isError = false) {
   status.textContent = message;
@@ -67,27 +62,11 @@ fileInput.addEventListener("change", async () => {
   }
 });
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault(); // Keep form submission from refreshing the page.
-  const x = xInput.valueAsNumber;
-  const y = yInput.valueAsNumber;
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    showStatus("Enter valid numbers for X and Y.", true);
-    return;
-  }
-  points.push({ x, y });
-  render();
-  showStatus(`Added (${x}, ${y}). Points: ${points.length}.`);
-  form.reset();
-  xInput.focus();
-});
-
 function hideTooltip() {
   tooltip.hidden = true;
 }
 
 function showTooltip(circle, point) {
-  if (deleteDialog.open) return;
   tooltip.textContent = `X: ${point.x}\nY: ${point.y}`;
   tooltip.hidden = false;
   const anchor = circle.getBoundingClientRect();
@@ -102,29 +81,6 @@ function showTooltip(circle, point) {
 
 window.addEventListener("scroll", hideTooltip, true);
 window.addEventListener("resize", hideTooltip);
-
-function requestDelete(point) {
-  pointToDelete = point;
-  deleteMessage.textContent = `Remove X: ${point.x}, Y: ${point.y} from both charts?`;
-  deleteDialog.returnValue = ""; // Escape must never reuse an earlier confirmation.
-  hideTooltip();
-  deleteDialog.showModal();
-}
-
-deleteDialog.addEventListener("close", () => {
-  if (deleteDialog.returnValue === "confirm") {
-    // Match the object itself so identical coordinates remain separate points.
-    const index = points.indexOf(pointToDelete);
-    if (index !== -1) {
-      points.splice(index, 1);
-      render();
-      showStatus(`Point deleted. Points: ${points.length}.`);
-      xInput.focus();
-    }
-  }
-  pointToDelete = null;
-  hideTooltip();
-});
 
 // Create SVG elements in the SVG namespace.
 function svgElement(tag, attributes, text = "") {
@@ -176,13 +132,13 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Add data to change the axis scales.";
+  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Import a CSV to change the axis scales.";
 }
 
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (points.length === 0) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or add a point"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV to see the chart"));
     return;
   }
 
@@ -234,19 +190,13 @@ function drawChart(svg, connectPoints) {
     const label = `X: ${point.x}, Y: ${point.y}`;
     const circle = svgElement("circle", {
       cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point",
-      tabindex: 0, role: "button", "aria-label": `${label}; press Enter to review deletion`
+      tabindex: 0, role: "img", "aria-label": label
     });
+    // Still focusable so keyboard users can read the values.
     circle.addEventListener("pointerenter", () => showTooltip(circle, point));
     circle.addEventListener("pointerleave", hideTooltip);
     circle.addEventListener("focus", () => showTooltip(circle, point));
     circle.addEventListener("blur", hideTooltip);
-    circle.addEventListener("click", () => requestDelete(point));
-    circle.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        requestDelete(point);
-      }
-    });
     svg.append(circle);
   });
 }
@@ -351,4 +301,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV or add a point.");
+showStatus("No data yet. Import a CSV to get started.");

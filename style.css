@@ -12,9 +12,6 @@ header p { margin: 4px 0 22px; color: #647184; }
 input, button, select { font: inherit; }
 #csv-help, .hint, footer { color: #647184; font-size: 13px; }
 #csv-help { margin: 6px 0 18px; }
-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
-form label { display: flex; align-items: center; gap: 8px; }
-input[type="number"] { width: 116px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
 button { padding: 8px 18px; border: 0; border-radius: 4px; background: #245bc5; color: white; cursor: pointer; }
 button:hover { background: #1948a6; }
 :focus-visible { outline: 2px solid #245bc5; outline-offset: 3px; }
@@ -39,7 +36,7 @@ svg .axis-label { font-weight: 600; }
 .grid { stroke: #e9edf3; }
 .axis { stroke: #9ca9ba; fill: none; }
 .line { fill: none; stroke: #245bc5; stroke-width: 2; }
-.point { fill: #245bc5; stroke: white; stroke-width: 2; cursor: pointer; }
+.point { fill: #245bc5; stroke: white; stroke-width: 2; }
 .point:hover, .point:focus { fill: #d4492c; stroke: #d4492c; outline: none; }
 #point-tooltip {
   position: fixed;
@@ -55,10 +52,6 @@ svg .axis-label { font-weight: 600; }
   overflow-wrap: anywhere;
   pointer-events: none;
 }
-dialog { width: 340px; max-width: calc(100vw - 32px); padding: 24px; border: 1px solid #dce2ea; border-radius: 8px; color: inherit; }
-dialog::backdrop { background: rgb(20 30 45 / 35%); }
-dialog p { overflow-wrap: anywhere; }
-.dialog-actions { justify-content: flex-end; margin-top: 20px; }
 .secondary { background: #e9edf3; color: #202b3c; }
 .secondary:hover { background: #dce2ea; }
 footer { margin-top: 18px; }
