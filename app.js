@@ -1,7 +1,7 @@
 // The single data source: each object is a point, such as { x: 1, y: 3 }.
-// Points only come from the imported CSV, the user can't add or delete them on the page.
+// Points only come from the imported CSV or XML file, the user can't add or delete them on the page.
 let points = [];
-const fileInput = document.querySelector("#csv-file");
+const fileInput = document.querySelector("#data-file");
 const importButton = document.querySelector("#import-button");
 const status = document.querySelector("#status");
 const tooltip = document.querySelector("#point-tooltip");
@@ -28,6 +28,10 @@ function showStatus(message, isError = false) {
   status.classList.toggle("error", isError);
 }
 
+// Plain decimal or scientific notation; rejects blanks, hex, and words like "Infinity".
+const numberPattern = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
+const isNumberText = (text) => numberPattern.test(text) && Number.isFinite(Number(text));
+
 // This example accepts two numeric columns, x and y, rather than arbitrary CSV.
 function parseCSV(text) {
   const lines = text.trim().split(/\r\n|\n|\r/);
@@ -39,19 +43,62 @@ function parseCSV(text) {
   }
 
   const result = [];
-  const numberPattern = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue; // Skip blank lines.
     const cells = readCells(lines[i]);
-    if (cells.length !== 2 || cells.some((cell) =>
-      !numberPattern.test(cell) || !Number.isFinite(Number(cell))
-    )) {
+    if (cells.length !== 2 || !cells.every(isNumberText)) {
       throw new Error(`Row ${i + 1} must contain exactly two valid numbers.`);
     }
     result.push({ x: Number(cells[0]), y: Number(cells[1]) });
   }
   if (result.length === 0) throw new Error("The CSV contains no data points.");
   return result;
+}
+
+// Browsers report XML syntax errors by inserting a <parsererror> element in a
+// browser-specific namespace. Learn that namespace from a known-bad document,
+// so a valid file that happens to contain its own <parsererror> is not rejected.
+const parserErrorNamespace = new DOMParser()
+  .parseFromString("<", "application/xml")
+  .getElementsByTagName("parsererror")[0]?.namespaceURI ?? null;
+
+// Accept any root element containing <point> elements. Each point gives x and y
+// either as attributes, <point x="1" y="3"/>, or as children, <point><x>1</x><y>3</y></point>.
+function parseXML(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.getElementsByTagNameNS(parserErrorNamespace, "parsererror").length > 0) {
+    throw new Error("The XML is not well-formed.");
+  }
+
+  // Match local names so namespaced files such as <d:point d:x="1"> also work.
+  const pointElements = [...doc.getElementsByTagNameNS("*", "point")];
+  const result = pointElements.map((element, index) => {
+    const read = (key) => {
+      const children = [...element.children].filter((child) => child.localName === key);
+      const attributes = [...element.attributes].filter((attribute) =>
+        attribute.localName === key && attribute.namespaceURI !== "http://www.w3.org/2000/xmlns/"
+      );
+      if (children.length + attributes.length !== 1) return null; // Missing or ambiguous.
+      const value = (attributes.length ? attributes[0].value : children[0].textContent).trim();
+      return isNumberText(value) ? Number(value) : null;
+    };
+    const x = read("x");
+    const y = read("y");
+    if (x === null || y === null) {
+      throw new Error(`Point ${index + 1} must contain exactly one valid number for x and for y.`);
+    }
+    return { x, y };
+  });
+  if (result.length === 0) throw new Error("The XML contains no <point> elements.");
+  return result;
+}
+
+// Choose a parser by file extension, falling back to content for unnamed types.
+function parseFile(name, text) {
+  const extension = name.toLowerCase().split(".").pop();
+  if (extension === "xml") return parseXML(text);
+  if (extension === "csv") return parseCSV(text);
+  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSV(text);
 }
 
 importButton.addEventListener("click", () => fileInput.click());
@@ -62,7 +109,7 @@ fileInput.addEventListener("change", async () => {
   importButton.disabled = true;
   try {
     const text = await file.text(); // Read the local file without uploading it.
-    points = parseCSV(text); // Replace data only after every row is valid.
+    points = parseFile(file.name, text); // Replace data only after every point is valid.
     render();
     showStatus(`Imported ${file.name}. Points: ${points.length}.`);
   } catch (error) {
@@ -143,13 +190,13 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Import a CSV to change the axis scales.";
+  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
 }
 
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (points.length === 0) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV to see the chart"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file to see the chart"));
     return;
   }
 
@@ -315,4 +362,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV to get started.");
+showStatus("No data yet. Import a CSV or XML file to get started.");

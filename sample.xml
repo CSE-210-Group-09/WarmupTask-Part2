@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<points>
+  <point x="1" y="3"/>
+  <point x="2" y="5"/>
+  <point x="3" y="4"/>
+  <point><x>4</x><y>8</y></point>
+  <point><x>5</x><y>6</y></point>
+  <point><x>6</x><y>10</y></point>
+</points>

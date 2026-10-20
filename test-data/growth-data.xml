@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<points>
+  <point x="1" y="2.1"/>
+  <point><x>2</x><y>4.5</y></point>
+  <point x="3" y="9.8"/>
+  <point><x>4</x><y>18</y></point>
+  <point x="5" y="35"/>
+  <point><x>6</x><y>72</y></point>
+  <point x="7" y="140"/>
+  <point><x>8</x><y>290</y></point>
+  <point x="9" y="610"/>
+  <point><x>10</x><y>1200</y></point>
+  <point x="11" y="2500"/>
+  <point><x>12</x><y>5100</y></point>
+</points>
