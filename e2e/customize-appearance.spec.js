@@ -11,8 +11,8 @@ test.beforeEach(async ({ page }) => {
   await importFile(page, "sample.csv", fs.readFileSync("sample.csv", "utf8"));
 });
 
-test("the data color recolors the line and the points in both charts", async ({ page }) => {
-  await page.locator("#data-color").fill("#d4492c");
+test("a line's color recolors the line and its points in both charts", async ({ page }) => {
+  await page.getByLabel("Color for y").fill("#d4492c");
   await expect(page.locator("#line-chart polyline.line")).toHaveAttribute("stroke", "#d4492c");
   for (const chart of ["line", "scatter"]) {
     const fills = await page.locator(`#${chart}-chart circle.point`).evaluateAll((c) => c.map((e) => e.getAttribute("fill")));
@@ -23,8 +23,8 @@ test("the data color recolors the line and the points in both charts", async ({ 
   await expect(page.locator("#line-chart polyline.line")).toHaveAttribute("stroke", "#d4492c");
 });
 
-test("typed axis labels appear on both charts and blank labels fall back", async ({ page }) => {
-  expect(await axisLabels(page, "line")).toEqual(["X", "Y"]);
+test("typed axis labels appear on both charts and blank labels fall back to column names", async ({ page }) => {
+  expect(await axisLabels(page, "line")).toEqual(["x", "y"]);
   await page.locator("#x-label").fill("Day");
   await page.locator("#y-label").fill("Height (cm)");
   expect(await axisLabels(page, "line")).toEqual(["Day", "Height (cm)"]);
@@ -32,11 +32,11 @@ test("typed axis labels appear on both charts and blank labels fall back", async
   await page.locator("#log-y").click();
   expect(await axisLabels(page, "line")).toEqual(["Day", "Height (cm) (log)"]);
   await page.locator("#x-label").fill("  ");
-  expect(await axisLabels(page, "scatter")).toEqual(["X", "Height (cm) (log)"]);
+  expect(await axisLabels(page, "scatter")).toEqual(["x", "Height (cm) (log)"]);
 });
 
 test("exported images use the chosen color and labels", async ({ page }) => {
-  await page.locator("#data-color").fill("#1a7f37");
+  await page.getByLabel("Color for y").fill("#1a7f37");
   await page.locator("#x-label").fill("Day");
   await page.locator("#scatter-format").selectOption("svg");
   const download = page.waitForEvent("download");

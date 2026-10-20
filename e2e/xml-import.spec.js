@@ -30,7 +30,10 @@ test("a malformed or invalid XML file is rejected and the chart is kept", async 
   await importFile(page, "bad.xml", "<points><point x='1' y='2'></points>");
   await expect(page.locator("#status")).toHaveText("The XML is not well-formed.");
   await expect(page.locator("#status")).toHaveClass(/error/);
-  await importFile(page, "missing.xml", '<points><point x="1"/></points>');
-  await expect(page.locator("#status")).toHaveText("Point 1 must contain exactly one valid number for x and for y.");
+  await importFile(page, "missing.xml", '<points><point x="1" y="2"/><point x="3"/></points>');
+  await expect(page.locator("#status")).toHaveText("Point 2 must contain exactly one valid number for x and for y.");
+  // The first point defines the columns, so one field there is too few.
+  await importFile(page, "one-field.xml", '<points><point x="1"/></points>');
+  await expect(page.locator("#status")).toHaveText("The XML needs at least two columns.");
   await expect(markers(page, "line")).toHaveCount(6);
 });

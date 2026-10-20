@@ -23,6 +23,7 @@ One file per user story, each test named after the behaviour it checks:
 | `view-many-points.spec.js` | I want to be able to properly view 100+ points |
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
+| `pick-columns.spec.js` | I want to be able to pick which columns to plot |
 
 Tests drive the page like a user: importing through the real file input, the mouse wheel with Ctrl held, dragging, and clicking. They assert what the user sees (markers, tick labels, the status line) and exported files.
 

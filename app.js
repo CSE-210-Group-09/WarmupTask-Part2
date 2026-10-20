@@ -1,6 +1,14 @@
-// The single data source: each object is a point, such as { x: 1, y: 3 }.
-// Points only come from the imported CSV or XML file, the user can't add or delete them on the page.
-let points = [];
+// The single data source: a table of numeric columns from the imported CSV or
+// XML file (see data.js). The user can't add or delete points on the page.
+let table = null;
+// Which columns are plotted: one X column and one or more Y columns.
+let selection = null;
+// Derived from the table and selection: one { name, color, points } per Y column.
+let series = [];
+// Colors the user picked, by column name, so they survive re-imports.
+const chosenColors = {};
+const hasData = () => series.length > 0;
+const allPoints = () => series.flatMap((line) => line.points);
 const fileInput = document.querySelector("#data-file");
 const importButton = document.querySelector("#import-button");
 const status = document.querySelector("#status");
@@ -11,7 +19,9 @@ const axisLabelInputs = { x: document.querySelector("#x-label"), y: document.que
 const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
-const dataColor = document.querySelector("#data-color");
+const columnControls = document.querySelector("#column-controls");
+const xColumnSelect = document.querySelector("#x-column");
+const yColumnList = document.querySelector("#y-columns");
 const zoomButtons = {
   in: document.querySelector("#zoom-in"),
   out: document.querySelector("#zoom-out"),
@@ -20,8 +30,6 @@ const zoomButtons = {
 const zoomStatus = document.querySelector("#zoom-status");
 // Both charts share one view, so they always show the same part of the data.
 let view = fullView();
-
-dataColor.addEventListener("input", render);
 
 const showLinePoints = document.querySelector("#show-line-points");
 
@@ -36,33 +44,6 @@ function showStatus(message, isError = false) {
   status.classList.toggle("error", isError);
 }
 
-// Plain decimal or scientific notation; rejects blanks, hex, and words like "Infinity".
-const numberPattern = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
-const isNumberText = (text) => numberPattern.test(text) && Number.isFinite(Number(text));
-
-// This example accepts two numeric columns, x and y, rather than arbitrary CSV.
-function parseCSV(text) {
-  const lines = text.trim().split(/\r\n|\n|\r/);
-  const readCells = (line) => line.split(",").map((cell) =>
-    cell.trim().replace(/^"([^"]*)"$/, "$1").trim()
-  );
-  if (readCells(lines[0]).join(",").toLowerCase() !== "x,y") {
-    throw new Error("The CSV header must be x,y.");
-  }
-
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue; // Skip blank lines.
-    const cells = readCells(lines[i]);
-    if (cells.length !== 2 || !cells.every(isNumberText)) {
-      throw new Error(`Row ${i + 1} must contain exactly two valid numbers.`);
-    }
-    result.push({ x: Number(cells[0]), y: Number(cells[1]) });
-  }
-  if (result.length === 0) throw new Error("The CSV contains no data points.");
-  return result;
-}
-
 // Browsers report XML syntax errors by inserting a <parsererror> element in a
 // browser-specific namespace. Learn that namespace from a known-bad document,
 // so a valid file that happens to contain its own <parsererror> is not rejected.
@@ -70,44 +51,95 @@ const parserErrorNamespace = new DOMParser()
   .parseFromString("<", "application/xml")
   .getElementsByTagName("parsererror")[0]?.namespaceURI ?? null;
 
-// Accept any root element containing <point> elements. Each point gives x and y
-// either as attributes, <point x="1" y="3"/>, or as children, <point><x>1</x><y>3</y></point>.
+// Accept any root element containing <point> elements. Each field of a point is
+// a column, given as an attribute, <point day="1" temp="3"/>, or as a child
+// element, <point><day>1</day><temp>3</temp></point>. data.js validates them.
 function parseXML(text) {
   const doc = new DOMParser().parseFromString(text, "application/xml");
   if (doc.getElementsByTagNameNS(parserErrorNamespace, "parsererror").length > 0) {
     throw new Error("The XML is not well-formed.");
   }
 
-  // Match local names so namespaced files such as <d:point d:x="1"> also work.
-  const pointElements = [...doc.getElementsByTagNameNS("*", "point")];
-  const result = pointElements.map((element, index) => {
-    const read = (key) => {
-      const children = [...element.children].filter((child) => child.localName === key);
-      const attributes = [...element.attributes].filter((attribute) =>
-        attribute.localName === key && attribute.namespaceURI !== "http://www.w3.org/2000/xmlns/"
-      );
-      if (children.length + attributes.length !== 1) return null; // Missing or ambiguous.
-      const value = (attributes.length ? attributes[0].value : children[0].textContent).trim();
-      return isNumberText(value) ? Number(value) : null;
-    };
-    const x = read("x");
-    const y = read("y");
-    if (x === null || y === null) {
-      throw new Error(`Point ${index + 1} must contain exactly one valid number for x and for y.`);
-    }
-    return { x, y };
-  });
-  if (result.length === 0) throw new Error("The XML contains no <point> elements.");
-  return result;
+  // Use local names so namespaced files such as <d:point d:x="1"> also work.
+  const records = [...doc.getElementsByTagNameNS("*", "point")].map((element) => [
+    ...[...element.attributes]
+      .filter((attribute) => attribute.namespaceURI !== "http://www.w3.org/2000/xmlns/")
+      .map((attribute) => [attribute.localName, attribute.value]),
+    ...[...element.children].map((child) => [child.localName, child.textContent])
+  ]);
+  return tableFromRecords(records);
 }
 
 // Choose a parser by file extension, falling back to content for unnamed types.
 function parseFile(name, text) {
   const extension = name.toLowerCase().split(".").pop();
   if (extension === "xml") return parseXML(text);
-  if (extension === "csv") return parseCSV(text);
-  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSV(text);
+  if (extension === "csv") return parseCSVTable(text);
+  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSVTable(text);
 }
+
+// Rebuild the plotted series after the data, the selection or a color changes.
+function updateSeries() {
+  const colors = assignColors(table.columns.filter((column) => column !== selection.x), chosenColors);
+  series = seriesFor(table, selection).map((line) => ({ ...line, color: colors[line.name] }));
+}
+
+// The column picker: an X column and a checkbox and color per possible line.
+function buildColumnControls() {
+  columnControls.hidden = !table;
+  if (!table) return;
+  xColumnSelect.replaceChildren(...table.columns.map((name) => new Option(name, name, false, name === selection.x)));
+  const colors = Object.fromEntries(series.map((line) => [line.name, line.color]));
+  const unselected = assignColors(table.columns.filter((column) => column !== selection.x), chosenColors);
+  yColumnList.replaceChildren(...table.columns.filter((name) => name !== selection.x).map((name) => {
+    const row = document.createElement("div");
+    row.className = "series-option";
+    const label = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = name;
+    box.checked = selection.ys.includes(name);
+    box.addEventListener("change", () => {
+      const checked = [...yColumnList.querySelectorAll("input[type=checkbox]:checked")].map((input) => input.value);
+      selection = { x: selection.x, ys: checked };
+      view = fullView(); // A different set of lines has a different Y range.
+      updateSeries();
+      lockLastLine();
+      render();
+    });
+    label.append(box, ` ${name}`);
+    const color = document.createElement("input");
+    color.type = "color";
+    color.value = colors[name] ?? unselected[name];
+    color.setAttribute("aria-label", `Color for ${name}`);
+    color.addEventListener("input", () => {
+      chosenColors[name] = color.value;
+      updateSeries();
+      render();
+    });
+    row.append(label, color);
+    return row;
+  }));
+  lockLastLine();
+}
+
+// At least one line stays selected: its checkbox can't be unchecked.
+function lockLastLine() {
+  const boxes = [...yColumnList.querySelectorAll("input[type=checkbox]")];
+  const checked = boxes.filter((box) => box.checked);
+  for (const box of boxes) {
+    box.disabled = checked.length === 1 && box.checked;
+    box.title = box.disabled ? "At least one line must be shown." : "";
+  }
+}
+
+xColumnSelect.addEventListener("change", () => {
+  selection = reconcileSelection(table.columns, { x: xColumnSelect.value, ys: selection.ys });
+  view = fullView();
+  updateSeries();
+  buildColumnControls();
+  render();
+});
 
 importButton.addEventListener("click", () => fileInput.click());
 
@@ -117,10 +149,15 @@ fileInput.addEventListener("change", async () => {
   importButton.disabled = true;
   try {
     const text = await file.text(); // Read the local file without uploading it.
-    points = parseFile(file.name, text); // Replace data only after every point is valid.
+    table = parseFile(file.name, text); // Replace data only after every point is valid.
+    // Keep the chosen columns when re-importing a file with the same columns.
+    selection = reconcileSelection(table.columns, selection);
     view = fullView();
+    updateSeries();
+    buildColumnControls();
     render();
-    showStatus(`Imported ${file.name}. Points: ${points.length}.`);
+    const columns = table.columns.length > 2 ? ` Columns: ${table.columns.join(", ")}.` : "";
+    showStatus(`Imported ${file.name}. Points: ${table.rows.length}.${columns}`);
   } catch (error) {
     showStatus(error instanceof DOMException ? "Unable to read this file." : error.message, true);
   } finally {
@@ -133,8 +170,8 @@ function hideTooltip() {
   tooltip.hidden = true;
 }
 
-function showTooltip(circle, point) {
-  tooltip.textContent = `X: ${point.x}\nY: ${point.y}`;
+function showTooltip(circle, text) {
+  tooltip.textContent = text;
   tooltip.hidden = false;
   const anchor = circle.getBoundingClientRect();
   const box = tooltip.getBoundingClientRect();
@@ -159,7 +196,9 @@ function svgElement(tag, attributes, text = "") {
   return element;
 }
 
+// Smallest and largest value on an axis, across every plotted line.
 function dataRange(key) {
+  const points = allPoints();
   let min = points[0][key];
   let max = min;
   for (const point of points) {
@@ -169,9 +208,17 @@ function dataRange(key) {
   return [min, max];
 }
 
-// Use the typed label, or X/Y when blank; log axes keep their "(log)" note.
+// Without a typed label, an axis is named after its column; a Y axis with
+// several lines falls back to "Y" (the legend names the lines).
+function defaultAxisLabel(key) {
+  if (!selection) return key.toUpperCase();
+  if (key === "x") return selection.x;
+  return selection.ys.length === 1 ? selection.ys[0] : "Y";
+}
+
+// Use the typed label, or the default when blank; log axes keep their "(log)" note.
 function axisLabel(key) {
-  const text = axisLabelInputs[key].value.trim() || key.toUpperCase();
+  const text = axisLabelInputs[key].value.trim() || defaultAxisLabel(key);
   return logScale[key] ? `${text} (log)` : text;
 }
 
@@ -190,7 +237,7 @@ for (const key of ["x", "y"]) {
 function updateScaleControls() {
   const descriptions = [];
   for (const key of ["x", "y"]) {
-    const allowed = points.length > 0 && points.every((point) => point[key] > 0);
+    const allowed = hasData() && allPoints().every((point) => point[key] > 0);
     const reset = logScale[key] && !allowed;
     if (!allowed) logScale[key] = false;
     const button = logButtons[key];
@@ -200,7 +247,7 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
+  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
 }
 
 // Plot area in the fixed SVG coordinates; CSS scales the chart to fit its container.
@@ -209,7 +256,7 @@ const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
 
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
-  if (points.length === 0) {
+  if (!hasData()) {
     svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file to see the chart"));
     return;
   }
@@ -261,39 +308,71 @@ function drawChart(svg, connectPoints) {
     clip.append(svgElement("rect", { x: left - 1, y: top - 1, width: right - left + 2, height: bottom - top + 2 }));
     const defs = svgElement("defs", {});
     defs.append(clip);
-    const coordinates = points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
-    svg.append(defs, svgElement("polyline", {
-      points: coordinates, class: "line", stroke: dataColor.value, "clip-path": `url(#${clipId})`
-    }));
+    svg.append(defs);
+    for (const line of series) {
+      const coordinates = line.points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
+      svg.append(svgElement("polyline", {
+        points: coordinates, class: "line", stroke: line.color, "clip-path": `url(#${clipId})`
+      }));
+    }
   }
 
   // Hiding markers leaves the line and the scatter plot unchanged.
-  if (connectPoints && !showLinePoints.checked) return;
-
   // Only points inside the view get a marker, so zooming in on 100+ points
   // leaves fewer, separated markers (and fewer stops for keyboard focus).
   const inside = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
-  points.forEach((point) => {
+  if (!connectPoints || showLinePoints.checked) {
+    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside);
+  }
+  drawLegend(svg);
+}
+
+function drawMarkers(svg, line, scaleX, scaleY, inside) {
+  const { left, right, top, bottom } = PLOT;
+  line.points.forEach((point) => {
     if (!inside(scaleX(point.x), left, right) || !inside(scaleY(point.y), top, bottom)) return;
-    const label = `X: ${point.x}, Y: ${point.y}`;
+    // Name the columns, so values from different lines can be told apart.
+    const label = `${selection.x}: ${point.x}, ${line.name}: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: dataColor.value,
+      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: line.color,
       tabindex: 0, role: "img", "aria-label": label
     });
     // Still focusable so keyboard users can read the values.
-    circle.addEventListener("pointerenter", () => showTooltip(circle, point));
+    const text = `${selection.x}: ${point.x}\n${line.name}: ${point.y}`;
+    circle.addEventListener("pointerenter", () => showTooltip(circle, text));
     circle.addEventListener("pointerleave", hideTooltip);
-    circle.addEventListener("focus", () => showTooltip(circle, point));
+    circle.addEventListener("focus", () => showTooltip(circle, text));
     circle.addEventListener("blur", hideTooltip);
     svg.append(circle);
   });
 }
 
+// With two or more lines, a legend in the plot's top-right corner names each
+// color. It is part of the SVG, so exported images include it.
+function drawLegend(svg) {
+  if (series.length < 2) return;
+  const legend = svgElement("g", { class: "legend" });
+  const box = svgElement("rect", { class: "legend-box", x: -8, y: 0, rx: 4, height: 8 + series.length * 16 });
+  legend.append(box);
+  series.forEach((line, i) => {
+    const y = 16 + i * 16;
+    legend.append(
+      svgElement("line", { x1: 0, y1: y - 4, x2: 16, y2: y - 4, stroke: line.color, "stroke-width": 3 }),
+      svgElement("text", { x: 22, y }, line.name)
+    );
+  });
+  svg.append(legend);
+  // Size the box to the longest name once the text can be measured.
+  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width));
+  box.setAttribute("width", width + 16);
+  legend.setAttribute("transform", `translate(${PLOT.right - width - 14} ${PLOT.top + 6})`);
+}
+
 // A constant axis has nothing to zoom into: its single value stays centered.
 function zoomableAxes() {
   return {
-    x: points.length > 0 && dataRange("x")[0] !== dataRange("x")[1],
-    y: points.length > 0 && dataRange("y")[0] !== dataRange("y")[1]
+    x: hasData() && dataRange("x")[0] !== dataRange("x")[1],
+    y: hasData() && dataRange("y")[0] !== dataRange("y")[1]
   };
 }
 
@@ -315,7 +394,7 @@ function updateZoomControls() {
     svg.classList.toggle("zoomable", canZoom);
     svg.classList.toggle("zoomed", !isFullView(view));
   }
-  if (points.length === 0) {
+  if (!hasData()) {
     zoomStatus.textContent = "";
   } else if (isFullView(view)) {
     zoomStatus.textContent = canZoom ? "Showing all points." : "Showing all points. A single value can't be zoomed.";
@@ -351,7 +430,7 @@ for (const svg of document.querySelectorAll(".charts svg")) {
   // Ctrl/Cmd + wheel zooms (trackpad pinch sends the same event); a plain
   // wheel still scrolls the page, so the charts never trap scrolling.
   svg.addEventListener("wheel", (event) => {
-    if (!(event.ctrlKey || event.metaKey) || points.length === 0) return;
+    if (!(event.ctrlKey || event.metaKey) || !hasData()) return;
     const position = plotPosition(svg, event);
     if (!position.inside) return;
     event.preventDefault();
@@ -363,7 +442,7 @@ for (const svg of document.querySelectorAll(".charts svg")) {
   // Drag inside the plot to pan; it only does something when zoomed in.
   let drag = null;
   svg.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0 || points.length === 0 || isFullView(view)) return;
+    if (event.button !== 0 || !hasData() || isFullView(view)) return;
     const position = plotPosition(svg, event);
     if (!position.inside) return;
     drag = { start: position, view: { x: [...view.x], y: [...view.y] } };
@@ -403,8 +482,8 @@ function render() {
   updateScaleControls();
   updateZoomControls();
   exportStatus.textContent = "";
-  exportButtons.forEach((button) => { button.disabled = points.length === 0; });
-  points.sort((a, b) => a.x - b.x);
+  exportButtons.forEach((button) => { button.disabled = !hasData(); });
+  for (const key of ["x", "y"]) axisLabelInputs[key].placeholder = defaultAxisLabel(key);
   drawChart(document.querySelector("#line-chart"), true);
   drawChart(document.querySelector("#scatter-chart"), false);
 }
@@ -469,7 +548,7 @@ async function rasterImage(svgBlob, format) {
 
 exportButtons.forEach((button) => {
   button.addEventListener("click", async () => {
-    if (points.length === 0) return;
+    if (!hasData()) return;
     const chart = button.dataset.chart;
     const format = document.querySelector(`#${chart}-format`).value;
     button.disabled = true;
@@ -493,7 +572,7 @@ exportButtons.forEach((button) => {
       exportStatus.classList.add("error");
       exportStatus.textContent = `Export failed: ${error.message}`;
     } finally {
-      button.disabled = points.length === 0;
+      button.disabled = !hasData();
     }
   });
 });

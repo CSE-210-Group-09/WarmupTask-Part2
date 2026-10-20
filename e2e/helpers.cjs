@@ -1,17 +1,24 @@
 // Shared helpers for the browser tests.
-const { expect } = require("@playwright/test");
 
 // Plot area inside the 480 x 300 chart viewBox (PLOT in app.js).
 const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
 
-// Import a file through the real file input, then wait for the status line.
+// Import a file through the real file input, then wait for the status line to
+// report success or an error. It is cleared first so an old message can't match.
 async function importFile(page, name, text) {
+  await page.locator("#status").evaluate((status) => {
+    status.textContent = "";
+    status.classList.remove("error");
+  });
   await page.setInputFiles("#data-file", {
     name,
     mimeType: name.endsWith(".xml") ? "application/xml" : "text/csv",
     buffer: Buffer.from(text)
   });
-  await expect(page.locator("#status")).toContainText(new RegExp(`Imported ${name}|must|not|no |header`));
+  await page.waitForFunction((file) => {
+    const status = document.querySelector("#status");
+    return status.textContent.startsWith(`Imported ${file}.`) || status.classList.contains("error");
+  }, name);
 }
 
 // A deterministic CSV with n rows: x = 1..n, y wiggles around a rising trend and stays positive.
