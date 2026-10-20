@@ -19,29 +19,33 @@
       <button id="import-button" type="button" aria-describedby="import-help">Import CSV or XML</button>
       <input id="data-file" type="file" accept=".csv,.xml,text/csv,application/xml,text/xml" hidden>
       <p id="import-help">CSV: header x,y, two numbers per row. XML: &lt;point x="1" y="3"/&gt; or &lt;point&gt;&lt;x&gt;1&lt;/x&gt;&lt;y&gt;3&lt;/y&gt;&lt;/point&gt;. Importing replaces the current data.</p>
-      <form id="point-form" novalidate>
-        <label for="x-input">X <input id="x-input" type="number" step="any" required></label>
-        <label for="y-input">Y <input id="y-input" type="number" step="any" required></label>
-        <button type="submit">Add point</button>
-      </form>
       <p id="status" role="status" aria-live="polite"></p>
     </section>
 
     <section class="scale-controls" aria-label="Axis scale">
       <button id="log-x" class="secondary" type="button" aria-pressed="false" aria-describedby="scale-help" disabled>X: Switch to log scale</button>
       <button id="log-y" class="secondary" type="button" aria-pressed="false" aria-describedby="scale-help" disabled>Y: Switch to log scale</button>
-      <p id="scale-help" aria-live="polite">Add data to change the axis scales.</p>
+      <p id="scale-help" aria-live="polite">Import a CSV or XML file to change the axis scales.</p>
     </section>
 
-    <p class="hint">Hover to see values · Click a point to review deletion · Line connects points in ascending X order</p>
+    <section class="label-controls" aria-label="Axis labels">
+      <label for="x-label">X-axis label <input id="x-label" type="text" placeholder="X" maxlength="40"></label>
+      <label for="y-label">Y-axis label <input id="y-label" type="text" placeholder="Y" maxlength="40"></label>
+    </section>
+
+    <section class="appearance-controls" aria-label="Plot appearance">
+      <label for="data-color">Data color</label>
+      <input id="data-color" type="color" value="#245bc5">
+    </section>
+
+    <p class="hint">Hover to see values · Line connects points in ascending X order</p>
     <div class="charts">
       <section class="chart" aria-labelledby="line-heading">
         <h2 id="line-heading">Line graph</h2>
-        <svg id="line-chart" viewBox="0 0 480 300" role="group" aria-labelledby="line-heading"></svg>
-        <label class="chart-option" for="line-points">
-          <input id="line-points" type="checkbox" checked aria-describedby="line-points-help"> Show points
+        <label class="chart-option" for="show-line-points">
+          <input id="show-line-points" type="checkbox" checked> Show data points
         </label>
-        <p id="line-points-help" class="option-help">Hidden points still show their values on hover or keyboard focus.</p>
+        <svg id="line-chart" viewBox="0 0 480 300" role="group" aria-labelledby="line-heading"></svg>
         <div class="export-controls">
           <label for="line-format">Image format</label>
           <select id="line-format">
@@ -70,13 +74,5 @@
     <footer>Files stay in your browser. Refreshing the page clears the data.</footer>
   </main>
   <div id="point-tooltip" role="tooltip" hidden></div>
-  <dialog id="delete-dialog" aria-labelledby="delete-heading" aria-describedby="delete-message">
-    <h2 id="delete-heading">Delete point?</h2>
-    <p id="delete-message"></p>
-    <form method="dialog" class="dialog-actions">
-      <button value="cancel" class="secondary" autofocus>Cancel</button>
-      <button value="confirm">Confirm</button>
-    </form>
-  </dialog>
 </body>
 </html>

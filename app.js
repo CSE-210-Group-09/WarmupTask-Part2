@@ -1,21 +1,27 @@
 // The single data source: each object is a point, such as { x: 1, y: 3 }.
+// Points only come from the imported CSV or XML file, the user can't add or delete them on the page.
 let points = [];
 const fileInput = document.querySelector("#data-file");
 const importButton = document.querySelector("#import-button");
-const form = document.querySelector("#point-form");
-const xInput = document.querySelector("#x-input");
-const yInput = document.querySelector("#y-input");
 const status = document.querySelector("#status");
 const tooltip = document.querySelector("#point-tooltip");
-const deleteDialog = document.querySelector("#delete-dialog");
-const deleteMessage = document.querySelector("#delete-message");
 const logButtons = { x: document.querySelector("#log-x"), y: document.querySelector("#log-y") };
 const logScale = { x: false, y: false };
+const axisLabelInputs = { x: document.querySelector("#x-label"), y: document.querySelector("#y-label") };
 const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
-const linePointsToggle = document.querySelector("#line-points");
-let pointToDelete = null;
+const dataColor = document.querySelector("#data-color");
+
+dataColor.addEventListener("input", render);
+
+const showLinePoints = document.querySelector("#show-line-points");
+
+showLinePoints.addEventListener("change", () => {
+  hideTooltip();
+  drawChart(document.querySelector("#line-chart"), true);
+  exportStatus.textContent = "";
+});
 
 function showStatus(message, isError = false) {
   status.textContent = message;
@@ -49,22 +55,31 @@ function parseCSV(text) {
   return result;
 }
 
+// Browsers report XML syntax errors by inserting a <parsererror> element in a
+// browser-specific namespace. Learn that namespace from a known-bad document,
+// so a valid file that happens to contain its own <parsererror> is not rejected.
+const parserErrorNamespace = new DOMParser()
+  .parseFromString("<", "application/xml")
+  .getElementsByTagName("parsererror")[0]?.namespaceURI ?? null;
+
 // Accept any root element containing <point> elements. Each point gives x and y
 // either as attributes, <point x="1" y="3"/>, or as children, <point><x>1</x><y>3</y></point>.
 function parseXML(text) {
   const doc = new DOMParser().parseFromString(text, "application/xml");
-  if (doc.getElementsByTagName("parsererror").length > 0) {
+  if (doc.getElementsByTagNameNS(parserErrorNamespace, "parsererror").length > 0) {
     throw new Error("The XML is not well-formed.");
   }
 
-  // Match local names so namespaced files such as <d:point> also work.
+  // Match local names so namespaced files such as <d:point d:x="1"> also work.
   const pointElements = [...doc.getElementsByTagNameNS("*", "point")];
   const result = pointElements.map((element, index) => {
     const read = (key) => {
       const children = [...element.children].filter((child) => child.localName === key);
-      const hasAttribute = element.hasAttribute(key);
-      if (children.length + (hasAttribute ? 1 : 0) !== 1) return null; // Missing or ambiguous.
-      const value = (hasAttribute ? element.getAttribute(key) : children[0].textContent).trim();
+      const attributes = [...element.attributes].filter((attribute) =>
+        attribute.localName === key && attribute.namespaceURI !== "http://www.w3.org/2000/xmlns/"
+      );
+      if (children.length + attributes.length !== 1) return null; // Missing or ambiguous.
+      const value = (attributes.length ? attributes[0].value : children[0].textContent).trim();
       return isNumberText(value) ? Number(value) : null;
     };
     const x = read("x");
@@ -105,27 +120,11 @@ fileInput.addEventListener("change", async () => {
   }
 });
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault(); // Keep form submission from refreshing the page.
-  const x = xInput.valueAsNumber;
-  const y = yInput.valueAsNumber;
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    showStatus("Enter valid numbers for X and Y.", true);
-    return;
-  }
-  points.push({ x, y });
-  render();
-  showStatus(`Added (${x}, ${y}). Points: ${points.length}.`);
-  form.reset();
-  xInput.focus();
-});
-
 function hideTooltip() {
   tooltip.hidden = true;
 }
 
 function showTooltip(circle, point) {
-  if (deleteDialog.open) return;
   tooltip.textContent = `X: ${point.x}\nY: ${point.y}`;
   tooltip.hidden = false;
   const anchor = circle.getBoundingClientRect();
@@ -140,29 +139,6 @@ function showTooltip(circle, point) {
 
 window.addEventListener("scroll", hideTooltip, true);
 window.addEventListener("resize", hideTooltip);
-
-function requestDelete(point) {
-  pointToDelete = point;
-  deleteMessage.textContent = `Remove X: ${point.x}, Y: ${point.y} from both charts?`;
-  deleteDialog.returnValue = ""; // Escape must never reuse an earlier confirmation.
-  hideTooltip();
-  deleteDialog.showModal();
-}
-
-deleteDialog.addEventListener("close", () => {
-  if (deleteDialog.returnValue === "confirm") {
-    // Match the object itself so identical coordinates remain separate points.
-    const index = points.indexOf(pointToDelete);
-    if (index !== -1) {
-      points.splice(index, 1);
-      render();
-      showStatus(`Point deleted. Points: ${points.length}.`);
-      xInput.focus();
-    }
-  }
-  pointToDelete = null;
-  hideTooltip();
-});
 
 // Create SVG elements in the SVG namespace.
 function svgElement(tag, attributes, text = "") {
@@ -182,6 +158,16 @@ function dataRange(key) {
     max = Math.max(max, point[key]);
   }
   return [min, max];
+}
+
+// Use the typed label, or X/Y when blank; log axes keep their "(log)" note.
+function axisLabel(key) {
+  const text = axisLabelInputs[key].value.trim() || key.toUpperCase();
+  return logScale[key] ? `${text} (log)` : text;
+}
+
+for (const key of ["x", "y"]) {
+  axisLabelInputs[key].addEventListener("input", render);
 }
 
 for (const key of ["x", "y"]) {
@@ -204,19 +190,19 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Add data to change the axis scales.";
+  scaleHelp.textContent = points.length ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
 }
 
-// concealPoints keeps circles interactive but invisible until hovered or focused.
-function drawChart(svg, connectPoints, concealPoints = false) {
+function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (points.length === 0) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file, or add a point"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file to see the chart"));
     return;
   }
 
   // Use fixed SVG coordinates; CSS scales the chart to fit its container.
-  const left = 84, right = 438, top = 20, bottom = 252;
+  // The left margin fits the widest tick label (such as -1.23e+300) beside the rotated Y label.
+  const left = 96, right = 438, top = 20, bottom = 252;
   const [xMin, xMax] = dataRange("x");
   const [yMin, yMax] = dataRange("y");
   const xAxis = createAxis(xMin, xMax, logScale.x);
@@ -233,39 +219,45 @@ function drawChart(svg, connectPoints, concealPoints = false) {
     const x = left + ratio * (right - left);
     svg.append(svgElement("text", { x, y: bottom + 22, "text-anchor": "middle" }, formatTick(xAxis.tick(ratio))));
   }
+  let widestYTick = 0;
   for (const ratio of yAxis.tickRatios) {
     const y = bottom - ratio * (bottom - top);
-    svg.append(svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, formatTick(yAxis.tick(ratio))));
+    const tick = svgElement("text", { x: left - 10, y: y + 4, "text-anchor": "end" }, formatTick(yAxis.tick(ratio)));
+    svg.append(tick);
+    widestYTick = Math.max(widestYTick, tick.getBBox().width);
   }
+  // Run the Y label up the left side, just clear of the widest tick value.
+  const yLabelX = Math.max(14, left - 10 - widestYTick - 6);
+  const middleY = (top + bottom) / 2;
   svg.append(
     svgElement("path", { d: `M ${left} ${top} V ${bottom} H ${right}`, class: "axis" }),
-    svgElement("text", { x: (left + right) / 2, y: 296, "text-anchor": "middle" }, logScale.x ? "X (log)" : "X"),
-    svgElement("text", { x: 14, y: 16 }, logScale.y ? "Y (log)" : "Y")
+    svgElement("text", { x: (left + right) / 2, y: 296, "text-anchor": "middle", class: "axis-label" }, axisLabel("x")),
+    svgElement("text", {
+      x: yLabelX, y: middleY, "text-anchor": "middle", class: "axis-label",
+      transform: `rotate(-90 ${yLabelX} ${middleY})`
+    }, axisLabel("y"))
   );
 
   // The line chart adds a polyline; both chart types share the remaining code.
   if (connectPoints) {
     const coordinates = points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
-    svg.append(svgElement("polyline", { points: coordinates, class: "line" }));
+    svg.append(svgElement("polyline", { points: coordinates, class: "line", stroke: dataColor.value }));
   }
+
+  // Hiding markers leaves the line and the scatter plot unchanged.
+  if (connectPoints && !showLinePoints.checked) return;
 
   points.forEach((point) => {
     const label = `X: ${point.x}, Y: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: concealPoints ? "point concealed" : "point",
-      tabindex: 0, role: "button", "aria-label": `${label}; press Enter to review deletion`
+      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: dataColor.value,
+      tabindex: 0, role: "img", "aria-label": label
     });
+    // Still focusable so keyboard users can read the values.
     circle.addEventListener("pointerenter", () => showTooltip(circle, point));
     circle.addEventListener("pointerleave", hideTooltip);
     circle.addEventListener("focus", () => showTooltip(circle, point));
     circle.addEventListener("blur", hideTooltip);
-    circle.addEventListener("click", () => requestDelete(point));
-    circle.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        requestDelete(point);
-      }
-    });
     svg.append(circle);
   });
 }
@@ -276,7 +268,7 @@ function render() {
   exportStatus.textContent = "";
   exportButtons.forEach((button) => { button.disabled = points.length === 0; });
   points.sort((a, b) => a.x - b.x);
-  drawChart(document.querySelector("#line-chart"), true, !linePointsToggle.checked);
+  drawChart(document.querySelector("#line-chart"), true);
   drawChart(document.querySelector("#scatter-chart"), false);
 }
 
@@ -285,9 +277,7 @@ function chartImage(svg, title) {
   const copy = svg.cloneNode(true);
   const originals = svg.querySelectorAll("*");
   const clones = copy.querySelectorAll("*");
-  const concealed = [];
   originals.forEach((element, index) => {
-    if (element.classList.contains("concealed")) concealed.push(clones[index]);
     const style = getComputedStyle(element);
     for (const property of ["fill", "stroke", "stroke-width", "font-family", "font-size", "font-weight"]) {
       clones[index].setAttribute(property, style.getPropertyValue(property));
@@ -296,7 +286,6 @@ function chartImage(svg, title) {
       clones[index].removeAttribute(attribute);
     }
   });
-  concealed.forEach((element) => element.remove()); // Exports match the visible chart.
   const image = svgElement("svg", {
     viewBox: "0 0 480 332", width: 960, height: 664, role: "img",
     "aria-labelledby": "image-title"
@@ -341,8 +330,6 @@ async function rasterImage(svgBlob, format) {
   }
 }
 
-linePointsToggle.addEventListener("change", render);
-
 exportButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     if (points.length === 0) return;
@@ -375,4 +362,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV or XML file, or add a point.");
+showStatus("No data yet. Import a CSV or XML file to get started.");

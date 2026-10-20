@@ -12,9 +12,6 @@ header p { margin: 4px 0 22px; color: #647184; }
 input, button, select { font: inherit; }
 #import-help, .hint, footer { color: #647184; font-size: 13px; }
 #import-help { margin: 6px 0 18px; }
-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
-form label { display: flex; align-items: center; gap: 8px; }
-input[type="number"] { width: 116px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
 button { padding: 8px 18px; border: 0; border-radius: 4px; background: #245bc5; color: white; cursor: pointer; }
 button:hover { background: #1948a6; }
 :focus-visible { outline: 2px solid #245bc5; outline-offset: 3px; }
@@ -24,6 +21,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .scale-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
 .scale-controls button[aria-pressed="true"] { background: #245bc5; color: white; }
 #scale-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
+.label-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.label-controls label { display: flex; align-items: center; gap: 8px; }
+input[type="text"] { width: 160px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
+.appearance-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; }
+input[type="color"] { width: 44px; height: 36px; padding: 3px; border: 1px solid #bac4d2; border-radius: 4px; background: white; cursor: pointer; }
+.chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
+.chart-option input { margin: 0; }
 .export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
 select { padding: 7px; border: 1px solid #bac4d2; border-radius: 4px; background: white; color: inherit; }
 #export-status { min-height: 20px; font-size: 13px; }
@@ -32,16 +36,12 @@ select { padding: 7px; border: 1px solid #bac4d2; border-radius: 4px; background
 h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
 svg { display: block; width: 100%; height: auto; }
 svg text { fill: #647184; font-size: 12px; }
+svg .axis-label { font-weight: 600; }
 .grid { stroke: #e9edf3; }
 .axis { stroke: #9ca9ba; fill: none; }
-.line { fill: none; stroke: #245bc5; stroke-width: 2; }
-.point { fill: #245bc5; stroke: white; stroke-width: 2; cursor: pointer; }
+.line { fill: none; stroke-width: 2; }
+.point { stroke: white; stroke-width: 2; }
 .point:hover, .point:focus { fill: #d4492c; stroke: #d4492c; outline: none; }
-/* Hidden points stay in place so hover, focus, and deletion still work along the line. */
-.point.concealed { opacity: 0; }
-.point.concealed:hover, .point.concealed:focus { opacity: 1; }
-.chart-option { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; cursor: pointer; }
-.option-help { margin: 2px 0 0; color: #647184; font-size: 12px; }
 #point-tooltip {
   position: fixed;
   z-index: 10;
@@ -56,10 +56,6 @@ svg text { fill: #647184; font-size: 12px; }
   overflow-wrap: anywhere;
   pointer-events: none;
 }
-dialog { width: 340px; max-width: calc(100vw - 32px); padding: 24px; border: 1px solid #dce2ea; border-radius: 8px; color: inherit; }
-dialog::backdrop { background: rgb(20 30 45 / 35%); }
-dialog p { overflow-wrap: anywhere; }
-.dialog-actions { justify-content: flex-end; margin-top: 20px; }
 .secondary { background: #e9edf3; color: #202b3c; }
 .secondary:hover { background: #dce2ea; }
 footer { margin-top: 18px; }
