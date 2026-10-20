@@ -11,6 +11,17 @@ const axisLabelInputs = { x: document.querySelector("#x-label"), y: document.que
 const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
+const dataColor = document.querySelector("#data-color");
+
+dataColor.addEventListener("input", render);
+
+const showLinePoints = document.querySelector("#show-line-points");
+
+showLinePoints.addEventListener("change", () => {
+  hideTooltip();
+  drawChart(document.querySelector("#line-chart"), true);
+  exportStatus.textContent = "";
+});
 
 function showStatus(message, isError = false) {
   status.textContent = message;
@@ -183,13 +194,16 @@ function drawChart(svg, connectPoints) {
   // The line chart adds a polyline; both chart types share the remaining code.
   if (connectPoints) {
     const coordinates = points.map((point) => `${scaleX(point.x)},${scaleY(point.y)}`).join(" ");
-    svg.append(svgElement("polyline", { points: coordinates, class: "line" }));
+    svg.append(svgElement("polyline", { points: coordinates, class: "line", stroke: dataColor.value }));
   }
+
+  // Hiding markers leaves the line and the scatter plot unchanged.
+  if (connectPoints && !showLinePoints.checked) return;
 
   points.forEach((point) => {
     const label = `X: ${point.x}, Y: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point",
+      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: dataColor.value,
       tabindex: 0, role: "img", "aria-label": label
     });
     // Still focusable so keyboard users can read the values.

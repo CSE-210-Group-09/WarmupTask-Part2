@@ -7,6 +7,8 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 
 - Import a CSV with the header `x,y` and two finite numbers per row. The imported CSV is the only source of data, points can't be added or deleted on the page. To change the data, edit the CSV and import it again.
 - Hover or focus a point to see its original values.
+- Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
+- Pick **Data color** to recolor the line and the points in both charts. The choice persists across imports and scale changes, and applies to PNG, JPEG, and SVG exports. Refreshing restores the default blue. The current CSV format supports one data series; per-series color controls will be needed when multiple-column plotting is added.
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
 - Type X- and Y-axis labels to replace the default X and Y on both charts and in exported images. Blank labels fall back to X and Y.
