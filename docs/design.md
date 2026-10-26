@@ -217,6 +217,21 @@ After import, a "Columns to plot" panel shows a menu for the X column and a chec
 - Changing the columns resets the zoom, because the ranges change.
 - **Considered:** a multi-select list, which is hard to use with a mouse and hard to read, or drag-and-drop column chips, which is more code and weaker for keyboard users.
 
+### 6.6 Minimap (issue #22)
+
+Below the zoom buttons, a small overview shows every line of the data and a box for the part in view, with a caption giving the visible ranges ("In view: x 56.9 to 94.1, y 12 to 48."). It appears once data is loaded and isn't part of exported images.
+
+- **Frame:** `overviewRange` makes the minimap show the data and the view together. Zoomed in, the frame is the data and the box sits inside it. Zoomed out or panned away, the frame grows to include the view, so the box is never cut off and the data shows as a shaded rectangle inside it.
+- **Moving the view:** drag the box to pan; press anywhere else to center the view there, then keep dragging. Arrow keys on the focused minimap pan by a tenth of the view, which is the first way to pan without a mouse. Like the charts, it does nothing at the data's own range.
+- **Drag maths:** a drag keeps the frame from its start. The frame can change while the view moves past the data, and recomputing it mid-drag would change the scale under the pointer.
+- **Text selection:** the charts and the minimap aren't text-selectable. A drag used to select tick labels, and in Chromium the next drag then moved that selection (the browser cancels the pointer to start drag-and-drop) instead of panning. The new test that drags three times in a row found this; it was already on main.
+
+| Choice | Why | Considered |
+|---|---|---|
+| One minimap for both charts | They share one view (6.1) | One per chart, which repeats the same picture |
+| Lines only, in the series colors | Cheap to draw for any number of points, and matches the line graph | Every point as a dot, which is slow for large files |
+| An SVG in the zoom controls, drawn by `app.js` | Reuses the chart's axes (`chartAxes`) and view maths (`viewPosition`, `viewRatio`) | A corner of each chart, which covers data and would end up in exports |
+
 ## 7. Appearance
 
 ### 7.1 Editable axis labels (PR #2, issue #7; defaults changed in PR #6)
@@ -256,7 +271,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 - Status messages (import result, scale explanation, zoom status, export result) are live regions, so screen readers announce them.
 - The log buttons report their state with `aria-pressed`, and disabled buttons explain why in nearby text.
 - Every control has a label. Markers are focusable, with labels naming each value, and the tooltip also appears on focus (6.2).
-- Zoom works from buttons as well as the wheel, and none of the features require a mouse.
+- Zoom works from buttons as well as the wheel, and the focused minimap pans with the arrow keys, so none of the features require a mouse. The minimap's caption states the visible ranges in text.
 - **Gaps:** the charts haven't been tested with a real screen reader, and there's no text alternative listing all values, such as a data table.
 
 ## 10. Testing
@@ -279,6 +294,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data (issue #20) |
 
 **Choices:**
 - **Playwright** is the one dev dependency, chosen because it drives Chromium, Firefox and WebKit through a single API.

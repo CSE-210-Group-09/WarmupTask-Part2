@@ -50,6 +50,10 @@
       <button id="zoom-reset" class="secondary" type="button" disabled>Reset zoom</button>
       <p id="zoom-status" role="status" aria-live="polite"></p>
       <p id="zoom-help">Ctrl + scroll (⌘ + scroll on a Mac) or pinch on a chart to zoom there, from 1000x in to 0.1x out, where the data fills the middle tenth. Drag to pan while zoomed, past the data if you like. Both charts share the view.</p>
+      <figure id="minimap-panel" class="minimap" hidden>
+        <svg id="minimap" viewBox="0 0 160 108" tabindex="0" role="group" aria-label="Minimap of all the data. The box marks the part in view: drag it, click elsewhere, or use the arrow keys to pan." aria-describedby="minimap-caption"></svg>
+        <figcaption id="minimap-caption"></figcaption>
+      </figure>
     </section>
 
     <p class="hint">Hover to see values · Line connects points in ascending X order</p>
