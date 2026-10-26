@@ -73,8 +73,11 @@ function parseXML(text) {
 }
 
 // Choose a parser by file extension, falling back to content for unnamed types.
-function parseFile(name, text) {
-  const extension = name.toLowerCase().split(".").pop();
+// Files are read locally, without uploading them.
+async function parseFile(file) {
+  const extension = file.name.toLowerCase().split(".").pop();
+  if (extension === "xlsx") return parseXLSX(new Uint8Array(await file.arrayBuffer()));
+  const text = await file.text();
   if (extension === "xml") return parseXML(text);
   if (extension === "json") return parseJSONTable(text);
   if (extension === "csv") return parseCSVTable(text);
@@ -148,8 +151,7 @@ fileInput.addEventListener("change", async () => {
   if (!file) return;
   importButton.disabled = true;
   try {
-    const text = await file.text(); // Read the local file without uploading it.
-    table = parseFile(file.name, text); // Replace data only after every point is valid.
+    table = await parseFile(file); // Replace data only after every point is valid.
     // Keep the chosen columns when re-importing a file with the same columns.
     selection = reconcileSelection(table.columns, selection);
     view = fullView();
@@ -557,4 +559,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV, XML or JSON file to get started.");
+showStatus("No data yet. Import a CSV, XML, JSON or Excel (.xlsx) file to get started.");

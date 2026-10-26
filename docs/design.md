@@ -31,7 +31,7 @@ Who decided what:
 
 ## 1. What the site is
 
-A single web page that plots numeric data from a CSV, XML or JSON file as two linked charts, a line graph and a scatter plot. Everything happens in the browser: files are read locally, nothing is uploaded, and refreshing clears the data. You can open `index.html` directly or serve the folder with any static server.
+A single web page that plots numeric data from a CSV, XML, JSON or Excel (.xlsx) file as two linked charts, a line graph and a scatter plot. Everything happens in the browser: files are read locally, nothing is uploaded, and refreshing clears the data. You can open `index.html` directly or serve the folder with any static server.
 
 The user stories it serves:
 
@@ -52,6 +52,7 @@ The user stories it serves:
 | `scale.js` | Maps values to positions on an axis and formats tick labels. No DOM access. |
 | `view.js` | Zoom and pan state. No DOM access. |
 | `data.js` | Parses files into a table of columns, chooses columns, assigns colors. No DOM access. |
+| `xlsx.js` | Reads `.xlsx` workbooks (unzipping and XML reading) into the same table. No DOM access. |
 | `app.js` | Everything that touches the page: file input, XML reading, drawing, interaction, export |
 
 A file goes through these steps:
@@ -145,6 +146,32 @@ A `.json` file is an array of objects, one per row, with a JSON number for each 
 - **Strict like CSV (4.2):** values must be JSON numbers. Strings such as `"3"`, booleans, `null`, nested values, missing or extra keys, and numbers too large for JavaScript (`1e400`) reject the file with a message naming the item. Unlike CSV and XML, JSON has a number type, so a quoted `"3"` is the file saying it isn't a number.
 - **Errors:** "The JSON is not valid." for a syntax error. For any other shape, the message shows an example of the expected one.
 - **Considered:** an object of columns (`{"x": [1, 2], "y": [3, 4]}`), which is compact but makes rows of unequal length easy to write and harder to report. Accepting several shapes means more rules to explain for little gain, so we started with the shape most tools export (`df.to_json(orient="records")` in pandas, `JSON.stringify` of an array of records).
+
+### 4.8 Spreadsheet import (issue #33)
+
+An `.xlsx` file's first worksheet becomes a table under the same rules as a CSV: the first filled row names the columns, and every later filled row needs a number in each of them. Errors give the sheet's own row numbers, so "Row 7" is row 7 in Excel.
+
+**How it's read, with no library.** An `.xlsx` file is a zip archive of XML parts. `xlsx.js`:
+1. `readZip` lists the parts from the zip's central directory.
+2. `unzipText` inflates each part with the browser's built-in `DecompressionStream("deflate-raw")`.
+3. `parseXMLTree` reads the parts. It's a small reader for the plain XML that spreadsheet programs write: it drops namespace prefixes and decodes entities and CDATA.
+4. `parseXLSX` follows the workbook's first sheet through its relationships file to the sheet's part, and reads shared strings, inline strings and numbers.
+5. `tableFromCells` applies the CSV rules.
+
+| Decision | Why | Considered |
+|---|---|---|
+| `.xlsx` without a library | Keeps the no-dependency design (3.1), and the format's parts are plain XML in a zip | SheetJS: least code, but the app's first runtime dependency (about 400 KB). TSV and pasted cells: smallest change, but users still couldn't open an `.xlsx` |
+| Our own XML reader instead of `DOMParser` | Node has no `DOMParser`, so this keeps the whole path unit-testable (the lesson of 4.5, where XML field reading could only be browser-tested). Workbook XML is machine-written and regular. | `DOMParser` in `app.js`, testable only in browsers |
+| First worksheet, in the workbook's tab order | The common case, with nothing to choose | A sheet picker, which can come later if asked for |
+| Formula cells use the result Excel saved | No formula engine needed, and it's the value the user sees | Rejecting formulas |
+| Text that is a number counts, booleans and error cells don't | Same as CSV, where everything is text | Rejecting all text cells |
+| Empty styled cells are ignored | Spreadsheet programs write formatting-only cells around data | Treating them as gaps |
+
+- **Errors:**
+  - Anything that isn't a zip with a workbook gets one message naming the likely causes: older `.xls` files and password-protected workbooks, which are a different container format.
+  - A missing sheet: "The workbook has no worksheets."
+  - Unknown compression or damaged data have their own messages.
+- **Tested against:** workbooks written by openpyxl (inline strings, absolute part paths), and workbooks built in the tests in Excel's layout (shared strings, relative paths, rich text, formulas). We haven't tested a file saved by Excel or Google Sheets themselves.
 
 ## 5. Scales and axes
 
@@ -268,6 +295,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 - `scale.js`: Team 10's extreme-value tests, plus tick labels when zoomed.
 - `view.js`: the zoom anchor stays put, clamping, limits, conversions.
 - `data.js`: CSV, XML and JSON tables, every validation error, selections, colors.
+- `xlsx.js`: the zip reader, the XML reader, cell types and references, the table rules, finding the first sheet.
 
 **Integration tests** (`tests/integration/*.test.cjs`, Node only) run the pure scripts together, the way `app.js` wires them, from parsed file to chart positions. Each part 3 story adds one file, written with its browser tests before any code ([testing.md](testing.md#three-layers-written-test-first)).
 
@@ -299,3 +327,4 @@ Totals when PR #6 was opened: 22 unit tests, and 26 browser tests on each of two
 - No pinch-to-zoom on phones (6.4).
 - Untested with a real screen reader; no data-table alternative (9).
 - Default line colors can repeat a color you picked (7.2).
+- Spreadsheets: only `.xlsx` and only the first sheet; dates arrive as Excel's day numbers; no `.xls`, `.ods` or files over 4 GB (4.8).

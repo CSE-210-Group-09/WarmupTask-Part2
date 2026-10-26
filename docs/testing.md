@@ -26,7 +26,7 @@ Each story has a staging branch, `story/<slug>`, and each task a scratch branch 
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `xlsx.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 ## Integration tests (`tests/integration/`)
 

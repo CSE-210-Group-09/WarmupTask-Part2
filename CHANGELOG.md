@@ -22,6 +22,12 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Spreadsheet import (issue #33)
+
+- Import an Excel workbook (`.xlsx`). The first sheet is read like a CSV, and errors give the sheet's row numbers. Non-workbooks, including `.xls` and password-protected files, get a message saying so, and a failed import keeps the current chart.
+- New `xlsx.js` with no dependencies: a zip reader using the browser's `DecompressionStream`, a small XML reader, and the CSV rules from `data.js`. `app.js` reads `.xlsx` files as bytes. Added `sample.xlsx` and `.xlsx` versions of the test data, written by openpyxl.
+- Validation: unit tests written first (10 in `tests/xlsx.test.cjs`), then the code. 41 unit, 9 integration and 72 browser tests (Chromium and Firefox) pass, and the import specs passed 5 repeated runs.
+
 ### JSON import (issue #32)
 
 - Import a `.json` file holding an array of objects with a number for each column. Errors name the item, and a failed import keeps the current chart. The import button now reads "Import data file", and the help text describes JSON.
