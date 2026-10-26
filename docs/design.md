@@ -160,7 +160,7 @@ An `.xlsx` file's first worksheet becomes a table under the same rules as a CSV:
 
 | Decision | Why | Considered |
 |---|---|---|
-| `.xlsx` without a library | Keeps the no-dependency design (3.1), and the format's parts are plain XML in a zip | SheetJS: least code, but the app's first runtime dependency (about 400 KB). TSV and pasted cells: smallest change, but users still couldn't open an `.xlsx` |
+| `.xlsx` without a library | Keeps the no-dependency design (3.1), and the format's parts are plain XML in a zip | SheetJS: least code, but the app's first runtime dependency, and a large one TSV and pasted cells: smallest change, but users still couldn't open an `.xlsx` |
 | Our own XML reader instead of `DOMParser` | Node has no `DOMParser`, so this keeps the whole path unit-testable (the lesson of 4.5, where XML field reading could only be browser-tested). Workbook XML is machine-written and regular. | `DOMParser` in `app.js`, testable only in browsers |
 | First worksheet, in the workbook's tab order | The common case, with nothing to choose | A sheet picker, which can come later if asked for |
 | Formula cells use the result Excel saved | No formula engine needed, and it's the value the user sees | Rejecting formulas |
