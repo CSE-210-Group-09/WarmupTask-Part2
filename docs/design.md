@@ -247,6 +247,14 @@ A **Point size** slider above the scatter plot sets the radius of its points, fr
 - **Why a slider:** it's a native `input type="range"`, so it already works with the keyboard and screen readers, and its `<output>` shows the number.
 - **Considered:** one size for both charts, which makes line markers cover the line at large sizes, or a number field, which is slower for trying sizes out.
 
+### 7.5 Chart title (issue #29)
+
+A **Chart title** field, beside the axis labels, sets one title for both charts. It shows above them and names exported images: it becomes the heading drawn at the top of the image and the SVG's `<title>`. A blank title hides it, and exports go back to "Line graph" or "Scatter plot", as before.
+
+- **One title for both charts:** they are two views of one dataset (6.1), like the shared labels and colors.
+- **Drawn by the existing export code:** export already drew a heading above the chart (8), so the title replaces that text and the plot area is unchanged.
+- **Considered:** drawing the title inside each chart's SVG, which would take space from the plot area that zoom, pan and the tests rely on; or a title per chart, which is twice the typing for the usual case.
+
 ## 8. Image export (Team 10; output follows later features)
 
 Each chart exports as PNG, JPEG or SVG. The download includes the chart title, current labels, scales, colors, hidden-marker setting, zoom and legend, on a white background.

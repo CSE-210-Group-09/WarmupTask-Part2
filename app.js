@@ -35,6 +35,8 @@ let view = fullView();
 
 const showLinePoints = document.querySelector("#show-line-points");
 const pointSize = document.querySelector("#point-size");
+const chartTitleInput = document.querySelector("#chart-title");
+const chartTitleText = document.querySelector("#chart-title-text");
 
 showLinePoints.addEventListener("change", () => {
   hideTooltip();
@@ -47,6 +49,13 @@ pointSize.addEventListener("input", () => {
   document.querySelector("#point-size-value").textContent = pointSize.value;
   hideTooltip();
   drawChart(document.querySelector("#scatter-chart"), false);
+  exportStatus.textContent = "";
+});
+
+// A typed title shows above both charts and names exported images; blank hides it.
+chartTitleInput.addEventListener("input", () => {
+  chartTitleText.textContent = chartTitleInput.value.trim();
+  chartTitleText.hidden = !chartTitleText.textContent;
   exportStatus.textContent = "";
 });
 
@@ -541,8 +550,8 @@ exportButtons.forEach((button) => {
     exportStatus.classList.remove("error");
     exportStatus.textContent = "Preparing image...";
     try {
-      const title = document.querySelector(`#${chart}-heading`).textContent;
-      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), title);
+      const heading = document.querySelector(`#${chart}-heading`).textContent;
+      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), chartTitleInput.value.trim() || heading);
       const blob = format === "svg" ? svgBlob : await rasterImage(svgBlob, format);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -553,7 +562,7 @@ exportButtons.forEach((button) => {
       link.remove();
       // Give the browser time to start the download before releasing the URL.
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      exportStatus.textContent = `Exported ${title.toLowerCase()} as ${format.toUpperCase()}.`;
+      exportStatus.textContent = `Exported ${heading.toLowerCase()} as ${format.toUpperCase()}.`;
     } catch (error) {
       exportStatus.classList.add("error");
       exportStatus.textContent = `Export failed: ${error.message}`;

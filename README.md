@@ -24,6 +24,7 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
 - Zoom with **Ctrl + scroll** (**⌘ + scroll** on a Mac) or a trackpad pinch over either chart, or with the **Zoom in** and **Zoom out** buttons. Drag a zoomed chart to pan. **Reset zoom** shows all points again. Both charts share the view, exported images show it, and importing or switching an axis scale resets it. See [design §6.4](docs/design.md#64-zoom-pan-and-reset-pr-5-issue-2).
+- Type a **Chart title** to show it above both charts and use it as the heading of exported images.
 - Type X- and Y-axis labels to replace the defaults on both charts and in exported images. Blank labels fall back to the column names ("Y" when several lines share the Y axis).
 - Choose PNG, JPEG, or SVG below either chart and click **Export image**. The download includes the chart title, current scales, labels, and points on a white background. PNG and JPEG are 960 by 664 pixels; SVG remains scalable.
 

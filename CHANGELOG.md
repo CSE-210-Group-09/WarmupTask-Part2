@@ -22,6 +22,11 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Chart title (issue #29)
+
+- A **Chart title** field sets a title shown above both charts and used as the heading and `<title>` of exported images. Blank keeps the old "Line graph" and "Scatter plot" headings.
+- Validation: no unit layer (markup and export wiring only). The story's end-to-end title test failed before and passes after, in Chromium and Firefox.
+
 ### Scatter point size (issue #28)
 
 - A **Point size** slider above the scatter plot sets its point radius (2 to 12, default 6). Exports keep it, and it survives imports. The line graph's markers are unchanged.
