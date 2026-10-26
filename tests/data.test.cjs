@@ -92,3 +92,33 @@ test("colors: chosen colors stick, others follow the palette by position", () =>
   const colors = plain(assignColors(many, {}));
   assert.equal(colors[`c${SERIES_COLORS.length}`], SERIES_COLORS[0]);
 });
+
+test("CSV rejects non-decimal and non-finite cells rather than coercing them", () => {
+  for (const value of ["NaN", "Infinity", "-Infinity", "1e309", "0x10", "0b10", "2px", " "]) {
+    assert.throws(() => parseCSVTable(`x,y\n1,${value}`), /Row 2 must contain exactly 2 valid numbers/);
+  }
+});
+
+test("CSV accepts signed decimals and scientific notation across line endings", () => {
+  for (const newline of ["\n", "\r\n", "\r"]) {
+    const input = ["x,y", "+.5,-2.", "", "1e-3,+2E2"].join(newline);
+    assert.deepEqual(plain(parseCSVTable(input)).rows, [[0.5, -2], [0.001, 200]]);
+  }
+});
+
+test("XML rejects duplicate first-point fields and numeric overflow", () => {
+  for (const fields of [
+    [["x", "1"], ["y", "2"], ["y", "3"]],
+    [["x", "1"], ["y", "1e309"]]
+  ]) {
+    assert.throws(() => tableFromRecords([fields]), /Point 1 must contain exactly one valid number/);
+  }
+});
+
+test("changing plotted X preserves source rows and duplicate-X measurements", () => {
+  const table = parseCSVTable("time,value\n3,2\n1,2\n2,1");
+  const before = plain(table);
+  const lines = plain(seriesFor(table, { x: "value", ys: ["time"] }));
+  assert.deepEqual(lines[0].points, [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 1 }]);
+  assert.deepEqual(plain(table), before);
+});
