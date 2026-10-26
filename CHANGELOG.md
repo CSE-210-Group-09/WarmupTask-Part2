@@ -22,6 +22,12 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### JSON import (issue #32)
+
+- Import a `.json` file holding an array of objects with a number for each column. Errors name the item, and a failed import keeps the current chart. The import button now reads "Import data file", and the help text describes JSON.
+- `data.js`: `parseJSONTable`. `app.js`: `.json` files, and unnamed files starting with `[` or `{`, go to it. Added `sample.json` and JSON versions of the test data.
+- Validation: unit tests written first (5), then the code. 31 unit tests pass, and the JSON end-to-end tests pass in Chromium and Firefox. The `.xlsx` tests fail until issue #33.
+
 ### Integration test layer
 
 - Added `npm run test:integration` and `tests/integration/`, for tests that run several pure scripts together in Node. `tests/load.cjs` loads them into one sandbox. The first file, `plot-pipeline.test.cjs`, follows a CSV to chart positions and tick labels (3 tests).

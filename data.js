@@ -36,6 +36,34 @@ function parseCSVTable(text) {
   return { columns, rows };
 }
 
+// An array of objects, one per row, with a JSON number for each column, such as
+// [{"x": 1, "y": 3}, {"x": 2, "y": 5}]. The first object names the columns.
+function parseJSONTable(text) {
+  let items;
+  try {
+    items = JSON.parse(text);
+  } catch {
+    throw new Error("The JSON is not valid.");
+  }
+  const isObject = (item) => item !== null && typeof item === "object" && !Array.isArray(item);
+  if (!Array.isArray(items) || !items.every(isObject)) {
+    throw new Error('The JSON must be an array of objects, such as [{"x": 1, "y": 3}, {"x": 2, "y": 5}].');
+  }
+  if (items.length === 0) throw new Error("The JSON contains no data points.");
+  const columns = Object.keys(items[0]);
+  checkColumns(columns, "JSON");
+  const rows = items.map((item, index) => {
+    // Strings such as "3" are rejected too: a JSON file can say what is a number.
+    const valid = Object.keys(item).length === columns.length &&
+      columns.every((column) => Object.hasOwn(item, column) && Number.isFinite(item[column]));
+    if (!valid) {
+      throw new Error(`Item ${index + 1} must contain exactly one number for each of: ${columns.join(", ")}.`);
+    }
+    return columns.map((column) => item[column]);
+  });
+  return { columns, rows };
+}
+
 // XML points arrive as records: one array of [name, text] fields per <point>,
 // in document order (app.js reads them from the DOM). The first point names
 // the columns; every point must give each of them exactly once, as a number.
