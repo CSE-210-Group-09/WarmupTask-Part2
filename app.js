@@ -34,10 +34,19 @@ const zoomStatus = document.querySelector("#zoom-status");
 let view = fullView();
 
 const showLinePoints = document.querySelector("#show-line-points");
+const pointSize = document.querySelector("#point-size");
 
 showLinePoints.addEventListener("change", () => {
   hideTooltip();
   drawChart(document.querySelector("#line-chart"), true);
+  exportStatus.textContent = "";
+});
+
+// Scatter point radius; the line graph's markers keep theirs, since they sit on the line.
+pointSize.addEventListener("input", () => {
+  document.querySelector("#point-size-value").textContent = pointSize.value;
+  hideTooltip();
+  drawChart(document.querySelector("#scatter-chart"), false);
   exportStatus.textContent = "";
 });
 
@@ -319,19 +328,20 @@ function drawChart(svg, connectPoints) {
   // leaves fewer, separated markers (and fewer stops for keyboard focus).
   const inside = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
   if (!connectPoints || showLinePoints.checked) {
-    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside);
+    const radius = connectPoints ? 6 : Number(pointSize.value);
+    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside, radius);
   }
   drawLegend(svg);
 }
 
-function drawMarkers(svg, line, scaleX, scaleY, inside) {
+function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
   const { left, right, top, bottom } = PLOT;
   line.points.forEach((point) => {
     if (!inside(scaleX(point.x), left, right) || !inside(scaleY(point.y), top, bottom)) return;
     // Name the columns, so values from different lines can be told apart.
     const label = `${selection.x}: ${point.x}, ${line.name}: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: line.color,
+      cx: scaleX(point.x), cy: scaleY(point.y), r: radius, class: "point", fill: line.color,
       tabindex: 0, role: "img", "aria-label": label
     });
     // Still focusable so keyboard users can read the values.

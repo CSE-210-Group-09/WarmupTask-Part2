@@ -22,6 +22,11 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Scatter point size (issue #28)
+
+- A **Point size** slider above the scatter plot sets its point radius (2 to 12, default 6). Exports keep it, and it survives imports. The line graph's markers are unchanged.
+- Validation: no unit layer (markup and drawing only). The story's end-to-end slider test failed before and passes after, in Chromium and Firefox.
+
 ### Hover keeps the line's color (issue #27)
 
 - A hovered or focused point now keeps its line's color, with a dark ring, instead of turning orange-red. `style.css` only.
