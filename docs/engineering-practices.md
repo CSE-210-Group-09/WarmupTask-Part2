@@ -39,7 +39,7 @@ JSDoc supplies editor help without a build step. It does not enforce types by it
 ## Development and review
 
 1. Define the user outcome and acceptance examples in an issue. Distinguish proposed features from agreed scope.
-2. Make focused branches and small PRs. Preserve opening `index.html` directly and local-only processing unless a deliberate design change is reviewed.
+2. Work test first: end-to-end workflows for `main` first, an integration spec on each story branch before any code, and unit tests on each task branch before the task's code (see [testing.md](testing.md#three-layers-written-test-first) for the layers and branch names). Make focused branches and small PRs. Preserve opening `index.html` directly and local-only processing unless a deliberate design change is reviewed.
 3. Keep pure logic in `data.js`, `scale.js` and `view.js`, with DOM interactions in `app.js`. Refactor as needed for the task.
 4. Add regression tests for fixes and behavior tests for new features. Cover invalid input and state preservation where relevant. Prefer observable outcomes over internal implementation details.
 5. Run unit tests and affected browser tests during development, then the full available browser suite before merge. Record commands, results and skipped engines in the PR.

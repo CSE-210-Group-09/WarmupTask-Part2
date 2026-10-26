@@ -1,8 +1,10 @@
-// Browser (integration) tests: `npm run test:e2e`. See docs/testing.md.
+// Browser tests: integration/ (one spec per user story, `npm run test:integration`)
+// and e2e/ (workflows across stories, `npm run test:e2e`). See docs/testing.md.
 const { defineConfig, devices } = require("@playwright/test");
 
 module.exports = defineConfig({
-  testDir: "e2e",
+  testDir: ".",
+  testMatch: ["integration/**/*.spec.js", "e2e/**/*.spec.js"],
   fullyParallel: true,
   use: { baseURL: "http://127.0.0.1:4321" },
   webServer: {
