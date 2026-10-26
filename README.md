@@ -20,7 +20,7 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 - Hover or focus a point to see its original values.
 - Drag **Point size** above the scatter plot to resize its points (2 to 12); exported images keep the size.
 - Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
-- Under **Columns to plot**, pick the **X-axis column** and check the columns to draw as lines. Each line has its own color picker; colors persist across imports and scale changes and apply to exports. With two or more lines, both charts show a legend. By default, a column named `x` (else the first column) is X and every other column is a line. See [design §6.5](docs/design.md#65-picking-columns-pr-6-issue-4).
+- Under **Columns to plot**, pick the **X-axis column** and check the columns to draw as lines. Each line has its own color picker; colors persist across imports and scale changes and apply to exports. With two or more lines, both charts show a legend; **Legend position** puts it in the corner covering the fewest points (Auto) or in a corner you choose. By default, a column named `x` (else the first column) is X and every other column is a line. See [design §6.5](docs/design.md#65-picking-columns-pr-6-issue-4).
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
 - Zoom with **Ctrl + scroll** (**⌘ + scroll** on a Mac) or a trackpad pinch over either chart, or with the **Zoom in** and **Zoom out** buttons. Drag a zoomed chart to pan. **Reset zoom** shows all points again. Both charts share the view, exported images show it, and importing or switching an axis scale resets it. See [design §6.4](docs/design.md#64-zoom-pan-and-reset-pr-5-issue-2).
@@ -37,6 +37,7 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 - `style.css`: layout and chart appearance.
 - `scale.js`: numeric scaling and tick formatting.
 - `view.js`: zoom and pan state.
+- `layout.js`: where the legend goes.
 - `data.js`: parsing files into a table of columns, column selection, and line colors.
 - `app.js`: CSV and XML input, chart interactions, and image export.
 - `sample.csv`, `sample.xml`: the same example dataset in each format.

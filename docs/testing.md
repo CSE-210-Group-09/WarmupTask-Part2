@@ -26,11 +26,11 @@ Each story has a staging branch, `story/<slug>`, and each task a scratch branch 
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`, `layout.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 ## Integration tests (`tests/integration/`)
 
-`tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name that doesn't exist yet comes back `undefined`, so a test written before its feature fails on its own rather than breaking the whole file. `plot-pipeline.test.cjs` follows a CSV through parsing, column selection, axes and the zoomed view to chart positions and tick labels.
+`tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name that doesn't exist yet comes back `undefined`, so a test written before its feature fails on its own rather than breaking the whole file. `plot-pipeline.test.cjs` follows a CSV through parsing, column selection, axes and the zoomed view to chart positions and tick labels. `appearance.test.cjs` follows data through the axes and view to where the legend goes.
 
 ## Browser tests (`e2e/`)
 
@@ -44,6 +44,7 @@ One file per user story, each test named after the behaviour it checks:
 | `import-recovery.spec.js` | Failed imports preserve configured plots; corrected files can be re-imported |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `appearance-settings.spec.js` | I want the chart to look the way I set it up |
 
 Tests drive the page like a user: importing through the real file input, the mouse wheel with Ctrl held, dragging, and clicking. They assert what the user sees (markers, tick labels, the status line) and exported files.
 

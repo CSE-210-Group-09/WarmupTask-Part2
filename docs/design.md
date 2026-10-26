@@ -51,6 +51,7 @@ The user stories it serves:
 | `style.css` | Layout and chart styling |
 | `scale.js` | Maps values to positions on an axis and formats tick labels. No DOM access. |
 | `view.js` | Zoom and pan state. No DOM access. |
+| `layout.js` | Where the legend goes in the plot. No DOM access. |
 | `data.js` | Parses files into a table of columns, chooses columns, assigns colors. No DOM access. |
 | `app.js` | Everything that touches the page: file input, XML reading, drawing, interaction, export |
 
@@ -239,6 +240,15 @@ With two or more lines, a legend in the plot's top-right corner names each color
 - **Why inside the SVG:** exports include it with no extra code.
 - **Considered:** an HTML legend beside the chart, which would be missing from exports, or a bigger top margin to hold it, which shifts the plot area that zoom, pan and the tests rely on. Zooming or panning moves data out from under the legend.
 
+**Moving it off the data (issue #30).** A **Legend position** menu under the line pickers offers Auto (the default) or one of the four corners. The choice applies to both charts and to exports, and it stays when you import new data.
+- **Auto** picks the corner whose legend box covers the fewest points in view (`emptiestCorner` in `layout.js`). A point within a marker's radius of the box counts as covered. Ties go top right, top left, bottom right, bottom left, so data that leaves every corner clear keeps the part 2 position.
+- Both charts count the same points, every point in view whether or not its marker is drawn, so their legends always agree. Auto runs on every redraw, so zooming or panning can move the legend.
+- **Considered:**
+  - Dragging the legend: free placement, but a mouse-only control with more code, and it needs a position stored per chart.
+  - Only fixed corners: simple, but the user has to find the empty corner themselves.
+  - Counting line segments as well as points: more maths for a small gain, since lines run between points.
+- **Limit:** Auto counts points, not line segments, so a steep line between two distant points can still pass under the legend. Pick a corner by hand then.
+
 ### 7.4 Scatter point size (issue #28)
 
 A **Point size** slider above the scatter plot sets the radius of its points, from 2 to 12 (default 6, the old fixed size), and shows the current value. Exports use it, and it survives imports.
@@ -276,6 +286,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 **Unit tests** (`tests/*.test.cjs`, Node only) cover the pure logic:
 - `scale.js`: Team 10's extreme-value tests, plus tick labels when zoomed.
 - `view.js`: the zoom anchor stays put, clamping, limits, conversions.
+- `layout.js`: legend boxes in each corner, the emptiest corner and its tie order.
 - `data.js`: CSV and XML tables, every validation error, selections, colors.
 
 **Integration tests** (`tests/integration/*.test.cjs`, Node only) run the pure scripts together, the way `app.js` wires them, from parsed file to chart positions. Each part 3 story adds one file, written with its browser tests before any code ([testing.md](testing.md#three-layers-written-test-first)).
@@ -291,6 +302,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `appearance-settings.spec.js` | I want the chart to look the way I set it up (issue #26) |
 
 **Choices:**
 - **Playwright** is the one dev dependency, chosen because it drives Chromium, Firefox and WebKit through a single API.

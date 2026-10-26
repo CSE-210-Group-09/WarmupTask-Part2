@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="./style.css">
   <script src="./scale.js" defer></script>
   <script src="./view.js" defer></script>
+  <script src="./layout.js" defer></script>
   <script src="./data.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
@@ -43,6 +44,16 @@
         <legend>Lines (Y axis) and their colors</legend>
         <div id="y-columns"></div>
       </fieldset>
+      <p class="legend-option">
+        <label for="legend-position">Legend position</label>
+        <select id="legend-position">
+          <option value="auto">Auto (corner with fewest points)</option>
+          <option value="top-right">Top right</option>
+          <option value="top-left">Top left</option>
+          <option value="bottom-right">Bottom right</option>
+          <option value="bottom-left">Bottom left</option>
+        </select>
+      </p>
     </section>
 
     <section class="zoom-controls" aria-label="Zoom">
