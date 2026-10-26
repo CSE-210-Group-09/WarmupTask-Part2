@@ -239,6 +239,14 @@ With two or more lines, a legend in the plot's top-right corner names each color
 - **Why inside the SVG:** exports include it with no extra code.
 - **Considered:** an HTML legend beside the chart, which would be missing from exports, or a bigger top margin to hold it, which shifts the plot area that zoom, pan and the tests rely on. Zooming or panning moves data out from under the legend.
 
+### 7.4 Scatter point size (issue #28)
+
+A **Point size** slider above the scatter plot sets the radius of its points, from 2 to 12 (default 6, the old fixed size), and shows the current value. Exports use it, and it survives imports.
+
+- **Scatter plot only:** there the points are the whole chart, so their size is a real choice: small for dense clouds, large for a few points on a slide. On the line graph the markers sit on the line, and they can be hidden (6.3).
+- **Why a slider:** it's a native `input type="range"`, so it already works with the keyboard and screen readers, and its `<output>` shows the number.
+- **Considered:** one size for both charts, which makes line markers cover the line at large sizes, or a number field, which is slower for trying sizes out.
+
 ## 8. Image export (Team 10; output follows later features)
 
 Each chart exports as PNG, JPEG or SVG. The download includes the chart title, current labels, scales, colors, hidden-marker setting, zoom and legend, on a white background.

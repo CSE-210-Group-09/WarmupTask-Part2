@@ -72,6 +72,10 @@
       </section>
       <section class="chart" aria-labelledby="scatter-heading">
         <h2 id="scatter-heading">Scatter plot</h2>
+        <label class="chart-option" for="point-size">
+          Point size <input id="point-size" type="range" min="2" max="12" step="1" value="6">
+          <output id="point-size-value" for="point-size">6</output>
+        </label>
         <svg id="scatter-chart" viewBox="0 0 480 300" role="group" aria-labelledby="scatter-heading"></svg>
         <div class="export-controls">
           <label for="scatter-format">Image format</label>

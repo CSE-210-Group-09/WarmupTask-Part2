@@ -18,6 +18,7 @@ Open `index.html` in a browser, or serve this folder with any static web server.
   The first point names the columns; every point must have exactly one number for each of them. A malformed file or invalid point is rejected and the current data is kept.
 - The imported file is the only source of data, points can't be added or deleted on the page. To change the data, edit the file and import it again.
 - Hover or focus a point to see its original values.
+- Drag **Point size** above the scatter plot to resize its points (2 to 12); exported images keep the size.
 - Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
 - Under **Columns to plot**, pick the **X-axis column** and check the columns to draw as lines. Each line has its own color picker; colors persist across imports and scale changes and apply to exports. With two or more lines, both charts show a legend. By default, a column named `x` (else the first column) is X and every other column is a line. See [design §6.5](docs/design.md#65-picking-columns-pr-6-issue-4).
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
