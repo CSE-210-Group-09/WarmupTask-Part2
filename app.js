@@ -381,7 +381,7 @@ function updateZoomControls() {
   const full = isFullView(view);
   const canZoom = hasData() && (zoomable("x") || zoomable("y"));
   zoomButtons.in.disabled = !canZoom || zoomLevel(view) >= 1 / MIN_SPAN - 1e-6;
-  zoomButtons.out.disabled = full;
+  zoomButtons.out.disabled = !canZoom || zoomLevel(view) <= 1 / MAX_SPAN + 1e-6;
   zoomButtons.reset.disabled = full;
   for (const svg of document.querySelectorAll(".charts svg")) svg.classList.toggle("zoomed", !full);
   zoomStatus.textContent = !hasData() ? "" : full ? "Showing all points." : `Zoomed ${formatTick(zoomLevel(view), 2)}x.`;
@@ -419,7 +419,8 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     zoomAt(position.x, position.y, factor);
   }, { passive: false });
 
-  // Drag inside the plot to pan; it only does something when zoomed in.
+  // Drag inside the plot to pan, when zoomed in or out (not at the data's own
+  // range, so a finger on the chart still scrolls the page there).
   let drag = null;
   svg.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || !hasData() || isFullView(view)) return;

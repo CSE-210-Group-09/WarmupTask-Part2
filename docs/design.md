@@ -13,6 +13,7 @@ Who decided what:
 | PR #4 | XML import |
 | PR #5 | Zoom, pan and reset zoom; browser tests for every user story |
 | PR #6 | Plotting multiple columns |
+| Part 3, issue #20 | Zooming out and panning past the data, minimap |
 
 ## Contents
 
@@ -173,11 +174,12 @@ A "Show data points" checkbox, on by default, hides the markers on the line grap
 
 **What the user can do:**
 - Ctrl + scroll (⌘ + scroll on a Mac), or a trackpad pinch, zooms around the pointer.
-- Dragging a zoomed chart pans it.
+- Zoom out goes past the data, down to 0.1x, where the data fills the middle tenth of each axis (issue #21).
+- Dragging a zoomed-in or zoomed-out chart pans it, past the data if you like.
 - Zoom in, Zoom out and Reset zoom buttons do the same from the keyboard.
-- A status line reads "Showing all points." or "Zoomed 4x."
+- A status line reads "Showing all points." at the data's own range, otherwise "Zoomed 4x." or "Zoomed 0.5x."
 
-**How the view is stored.** `view.js` keeps the visible part of each axis as fractions of the whole, `[start, end]`, where `[0, 1]` means everything. Drawing maps a value through its axis (5.1) and then through the view.
+**How the view is stored.** `view.js` keeps the visible part of each axis as fractions of the data's range, `[start, end]`, where `[0, 1]` is the data and `[-0.5, 1.5]` the data with half its width of space on each side. `createAxis` positions and ticks continue past 0 and 1 in a straight line (linear) or by decades (log). Drawing maps a value through its axis (5.1) and then through the view.
 
 | Option | Verdict |
 |---|---|
@@ -193,7 +195,11 @@ A "Show data points" checkbox, on by default, hides the markers on the line grap
 | One shared view for both charts | Keeps the two linked views showing the same points | A separate view per chart, which needs two reset buttons and lets the charts disagree |
 | Both axes zoom together | Keeps dense scatter clusters readable | X-only zoom |
 | An axis with a single value stays at full range | There's nothing to zoom into; its point stays centered | — |
-| 1x to 1000x, and panning stays inside the data | The user can't get lost off-screen | Unlimited zoom |
+| 0.1x to 1000x; views stay inside a limit centered on the data, `[-4.5, 5.5]` (issue #21) | Zooming out shows the data in context and makes room to pan past its edges. The limit keeps the data findable, and the minimap shows where the view is. | Stopping at the data's range (part 2: you can't get lost, but can't see past the edges); unlimited zoom out, where the data shrinks to a dot |
+| Only the data's own range counts as the full view | Reset zoom stays enabled and the status shows the level whenever the view differs, including when zoomed out or panned at 1x | Treating any view that contains all the data as full, which would disable Reset when zoomed out |
+| Drag pans whenever the view isn't the full view | On touch screens a finger at the full view still scrolls the page, as in part 2 | Panning at the full view too |
+| Zoom level is the axis furthest from 1x | A constant axis never zooms, so taking the narrower span (part 2) would report 1x when zoomed out | — |
+| Ticks beyond the largest numbers stop at ±1.8e308 (log ticks at 5e-324) | Zooming out on data near the limits of JavaScript numbers would otherwise label ticks "Infinity" or 0 | A smaller zoom-out limit for such data |
 | Points outside the view aren't drawn; the line is clipped to the plot | Fewer markers when zoomed, a shorter tab order, and exports that match the screen. The line still uses every point, so its slope at the edges is right. | Drawing everything |
 | Drag pans from the view at the start of the drag | Rounding can't build up over a long drag | Adding up each move |
 | Redraws are grouped to one per animation frame | Wheel and drag fire many events per frame | Redrawing on every event |
@@ -286,6 +292,7 @@ Totals when PR #6 was opened: 22 unit tests, and 26 browser tests on each of two
 - CSV: no commas or line breaks inside quoted fields (4.3).
 - No gaps: every row needs every value (4.2).
 - Lines are sorted by X, so paths that double back can't be drawn (4.6).
+- Zoomed out on data near ±1.8e308, the outer ticks repeat the largest number (6.4).
 - No pinch-to-zoom on phones (6.4).
 - Untested with a real screen reader; no data-table alternative (9).
 - Default line colors can repeat a color you picked (7.2).
