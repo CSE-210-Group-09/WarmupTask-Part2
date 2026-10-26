@@ -18,10 +18,89 @@
     </header>
 
     <section class="controls" aria-label="Data input">
-      <button id="import-button" type="button" aria-describedby="import-help">Import CSV or XML</button>
       <input id="data-file" type="file" accept=".csv,.xml,text/csv,application/xml,text/xml" hidden>
-      <p id="import-help">CSV: a header row of column names, then one number per column on every row. XML: one &lt;point&gt; per row, with a field per column, such as &lt;point x="1" y="3"/&gt; or &lt;point&gt;&lt;x&gt;1&lt;/x&gt;&lt;y&gt;3&lt;/y&gt;&lt;/point&gt;. Importing replaces the current data.</p>
-      <p id="status" role="status" aria-live="polite"></p>
+      <div class="top-container-grid">
+        <!-- Column 1: Import -->
+        <div class="top-col import-col">
+          <button id="import-button" type="button" aria-describedby="import-help">Import CSV or XML</button>
+          <p class="import-subtext">Supports .csv and .xml up to 10MB</p>
+        </div>
+
+        <!-- Column 2: CSV Format Card -->
+        <div class="top-col format-card csv-card">
+          <div class="card-header">
+            <span class="card-title-group">
+              <svg class="format-icon" viewBox="0 0 16 16" width="14" height="14" style="width: 14px; height: 14px;" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
+                <path d="M3 1.5h6.5L13 5v9.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" fill="#f8fafc"/>
+                <path d="M9.5 1.5V5H13"/>
+                <path d="M4.5 7.5h7M4.5 10h7M4.5 12.5h4.5" stroke="#94a3b8"/>
+              </svg>
+              <span class="card-title">CSV Format</span>
+            </span>
+            <span class="info-icon" title="CSV format details" aria-label="CSV format details">ⓘ</span>
+          </div>
+          <div class="card-body">
+            <ul class="format-list">
+              <li>First row must be column headers</li>
+              <li>Numbers only per column thereafter</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Column 3: XML Format Card -->
+        <div class="top-col format-card xml-card">
+          <div class="card-header">
+            <span class="card-title-group">
+              <svg class="format-icon" viewBox="0 0 16 16" width="14" height="14" style="width: 14px; height: 14px;" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
+                <path d="M3 1.5h6.5L13 5v9.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1z" fill="#f8fafc"/>
+                <path d="M9.5 1.5V5H13"/>
+                <path d="M5.5 8l-1.5 1.5 1.5 1.5M10.5 8l1.5 1.5-1.5 1.5M7 11.5l2-5" stroke="#94a3b8"/>
+              </svg>
+              <span class="card-title">XML Format</span>
+            </span>
+            <span class="info-icon" title="XML format details" aria-label="XML format details">ⓘ</span>
+          </div>
+          <div class="card-body">
+            <pre class="xml-sample"><code>&lt;point x="1" y="3" /&gt; or
+&lt;point&gt;&lt;x&gt;1&lt;/x&gt;&lt;y&gt;3&lt;/y&gt;
+&lt;/point&gt;</code></pre>
+            <div class="xml-footer">
+              <span class="format-badge">Format Requirements</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 4: Metadata Card -->
+        <div id="metadata-card" class="top-col metadata-card empty">
+          <div class="card-header">
+            <span id="meta-status-badge" class="status-badge inactive">
+              <span class="status-dot"></span>
+              <span>Inactive</span>
+            </span>
+            <svg class="meta-doc-icon" viewBox="0 0 16 16" width="14" height="14" style="width: 14px; height: 14px;" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
+              <path d="M3.5 1.5h6l3 3V14a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1z"/>
+              <path d="M9.5 1.5V4.5H12.5"/>
+            </svg>
+          </div>
+          <div class="card-body meta-body">
+            <div id="meta-empty-view" class="meta-empty">
+              <p class="meta-empty-title">No file imported yet</p>
+              <p class="meta-empty-desc">Import a CSV or XML file to view metadata.</p>
+            </div>
+            <div id="meta-active-view" class="meta-active" hidden>
+              <p class="meta-field"><strong>File name:</strong> <span id="meta-filename">—</span></p>
+              <p class="meta-field"><strong>Rows/Points:</strong> <span id="meta-points">—</span></p>
+              <p class="meta-field"><strong>Columns detected (<span id="meta-cols-count">0</span>):</strong></p>
+              <div id="meta-columns-list" class="meta-tags-list"></div>
+            </div>
+            <div id="meta-error-view" class="meta-error" hidden>
+              <p id="meta-error-text" class="error-msg"></p>
+            </div>
+          </div>
+          <p id="status" role="status" aria-live="polite" class="sr-only"></p>
+        </div>
+      </div>
+      <p id="import-help" class="sr-only">CSV: a header row of column names, then one number per column on every row. XML: one &lt;point&gt; per row, with a field per column, such as &lt;point x="1" y="3"/&gt; or &lt;point&gt;&lt;x&gt;1&lt;/x&gt;&lt;y&gt;3&lt;/y&gt;&lt;/point&gt;. Importing replaces the current data.</p>
     </section>
 
     <div class="controls-grid">
@@ -108,5 +187,88 @@
     <footer>Files stay in your browser. Refreshing the page clears the data.</footer>
   </main>
   <div id="point-tooltip" role="tooltip" hidden></div>
+  <script>
+    (function() {
+      const statusEl = document.querySelector("#status");
+      const metaCard = document.querySelector("#metadata-card");
+      const metaBadge = document.querySelector("#meta-status-badge");
+      const metaEmptyView = document.querySelector("#meta-empty-view");
+      const metaActiveView = document.querySelector("#meta-active-view");
+      const metaErrorView = document.querySelector("#meta-error-view");
+      const metaFilename = document.querySelector("#meta-filename");
+      const metaPoints = document.querySelector("#meta-points");
+      const metaColsCount = document.querySelector("#meta-cols-count");
+      const metaColsList = document.querySelector("#meta-columns-list");
+      const metaErrorText = document.querySelector("#meta-error-text");
+
+      function updateMetadataCard() {
+        if (!statusEl || !metaCard) return;
+        const isError = statusEl.classList.contains("error");
+        const text = (statusEl.textContent || "").trim();
+
+        if (isError) {
+          metaCard.className = "top-col metadata-card error";
+          metaBadge.className = "status-badge error";
+          metaBadge.innerHTML = `<span class="badge-icon">✕</span> <span>Error</span>`;
+          metaErrorText.textContent = text;
+          metaEmptyView.hidden = true;
+          metaActiveView.hidden = true;
+          metaErrorView.hidden = false;
+          return;
+        }
+
+        if (!text || !text.startsWith("Imported ")) {
+          metaCard.className = "top-col metadata-card empty";
+          metaBadge.className = "status-badge inactive";
+          metaBadge.innerHTML = `<span class="status-dot"></span> <span>Inactive</span>`;
+          metaEmptyView.hidden = false;
+          metaActiveView.hidden = true;
+          metaErrorView.hidden = true;
+          return;
+        }
+
+        const match = text.match(/^Imported\s+(.*?)\.\s+Points:\s+(\d+)\.(?:\s+Columns:\s+(.*?)\.)?$/);
+        const fileName = match ? match[1] : "Dataset";
+        const points = match ? match[2] : (typeof table !== "undefined" && table ? table.rows.length : "—");
+
+        let cols = [];
+        if (match && match[3]) {
+          cols = match[3].split(",").map(c => c.trim()).filter(Boolean);
+        } else if (typeof table !== "undefined" && table && table.columns) {
+          cols = table.columns;
+        }
+
+        metaCard.className = "top-col metadata-card active";
+        metaBadge.className = "status-badge active";
+        metaBadge.innerHTML = `<span class="badge-icon">✓</span> <span>Active</span>`;
+        metaFilename.textContent = fileName;
+        metaPoints.textContent = points;
+        metaColsCount.textContent = cols.length;
+
+        metaColsList.replaceChildren(...cols.map(col => {
+          const span = document.createElement("span");
+          span.className = "col-tag";
+          span.textContent = col;
+          return span;
+        }));
+
+        metaEmptyView.hidden = true;
+        metaActiveView.hidden = false;
+        metaErrorView.hidden = true;
+      }
+
+      const observer = new MutationObserver(updateMetadataCard);
+      if (statusEl) {
+        observer.observe(statusEl, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["class"]
+        });
+      }
+      updateMetadataCard();
+    })();
+  </script>
 </body>
 </html>
