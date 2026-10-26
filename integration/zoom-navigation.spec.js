@@ -2,7 +2,7 @@
 //   out past the edges of my data (issue #20). Zooming out stops at 0.1x, where
 //   the data fills the middle tenth of each axis; a minimap shows the view.
 const { test, expect } = require("@playwright/test");
-const { importFile, csvWithPoints, plotPoint, markers, xTickLabels } = require("./helpers.cjs");
+const { importFile, csvWithPoints, plotPoint, markers, xTickLabels } = require("../e2e/helpers.cjs");
 
 const N = 150;
 const zoomStatus = (page) => page.locator("#zoom-status");

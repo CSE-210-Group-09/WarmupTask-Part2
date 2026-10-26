@@ -3,7 +3,7 @@
 // minimap's frame. Written before the story's code; see docs/testing.md.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { loadScripts } = require("../load.cjs");
+const { loadScripts } = require("./load.cjs");
 
 const {
   MAX_SPAN, fullView, isFullView, placeRange, zoomRange, panRange, overviewRange,

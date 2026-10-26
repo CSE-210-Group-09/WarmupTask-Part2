@@ -2,7 +2,7 @@
 //   Zooming + panning, a button to reset zoom, and an option to hide points
 //   on the line graph (the points sometimes cover the line).
 const { test, expect } = require("@playwright/test");
-const { importFile, csvWithPoints, plotPoint, markers, xTickLabels } = require("./helpers.cjs");
+const { importFile, csvWithPoints, plotPoint, markers, xTickLabels } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 const N = 150;
