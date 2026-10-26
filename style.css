@@ -168,9 +168,10 @@ svg.meta-doc-icon {
   background: #f8fafc;
   border: 1px dashed #cbd5e1;
 }
-.metadata-card.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+.metadata-card.error,
+.metadata-card.has-error {
+  background: #fef6f6;
+  border: 1px solid #fca5a5;
 }
 .metadata-card .card-header {
   display: flex;
@@ -267,25 +268,36 @@ svg.meta-doc-icon {
   border-radius: 3px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
+.meta-error {
+  margin-bottom: 4px;
+}
 .meta-error .error-msg {
   margin: 0;
   color: #b91c1c;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
-/* Strict metadata view switching based on parent card state */
-#metadata-card.empty #meta-empty-view { display: flex !important; }
-#metadata-card.empty #meta-active-view,
-#metadata-card.empty #meta-error-view { display: none !important; }
+/* Metadata view visibility */
+#meta-empty-view[hidden],
+#meta-active-view[hidden],
+#meta-error-view[hidden] {
+  display: none !important;
+}
 
-#metadata-card.active #meta-active-view { display: block !important; }
-#metadata-card.active #meta-empty-view,
-#metadata-card.active #meta-error-view { display: none !important; }
+#meta-empty-view:not([hidden]) {
+  display: flex !important;
+}
 
-#metadata-card.error #meta-error-view { display: block !important; }
-#metadata-card.error #meta-empty-view,
-#metadata-card.error #meta-active-view { display: none !important; }
+#meta-active-view:not([hidden]) {
+  display: block !important;
+}
+
+#meta-error-view:not([hidden]) {
+  display: block !important;
+}
 
 .sr-only {
   position: absolute;

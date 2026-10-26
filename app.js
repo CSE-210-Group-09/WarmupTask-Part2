@@ -33,6 +33,73 @@ const zoomStatus = document.querySelector("#zoom-status");
 // Both charts share one view, so they always show the same part of the data.
 let view = fullView();
 
+const metaCard = document.querySelector("#metadata-card");
+const metaBadge = document.querySelector("#meta-status-badge");
+const metaEmptyView = document.querySelector("#meta-empty-view");
+const metaActiveView = document.querySelector("#meta-active-view");
+const metaErrorView = document.querySelector("#meta-error-view");
+const metaErrorText = document.querySelector("#meta-error-text");
+const metaFilename = document.querySelector("#meta-filename");
+const metaPoints = document.querySelector("#meta-points");
+const metaColsCount = document.querySelector("#meta-cols-count");
+const metaColsList = document.querySelector("#meta-columns-list");
+let lastFileName = null;
+
+function updateMetadata(fileName, currentTable) {
+  if (!metaCard) return;
+  if (!currentTable) {
+    metaCard.className = "top-col metadata-card empty";
+    if (metaBadge) {
+      metaBadge.className = "status-badge inactive";
+      metaBadge.innerHTML = `<span class="status-dot"></span> <span>Inactive</span>`;
+    }
+    if (metaEmptyView) metaEmptyView.hidden = false;
+    if (metaActiveView) metaActiveView.hidden = true;
+    if (metaErrorView) metaErrorView.hidden = true;
+    return;
+  }
+  metaCard.className = "top-col metadata-card active";
+  if (metaBadge) {
+    metaBadge.className = "status-badge active";
+    metaBadge.innerHTML = `<span class="badge-icon">✓</span> <span>Active</span>`;
+  }
+  if (metaErrorView) metaErrorView.hidden = true;
+  if (metaEmptyView) metaEmptyView.hidden = true;
+  if (metaActiveView) metaActiveView.hidden = false;
+
+  if (metaFilename) metaFilename.textContent = fileName;
+  if (metaPoints) metaPoints.textContent = currentTable.rows.length;
+  if (metaColsCount) metaColsCount.textContent = currentTable.columns.length;
+
+  if (metaColsList) {
+    metaColsList.replaceChildren(...currentTable.columns.map((col) => {
+      const span = document.createElement("span");
+      span.className = "col-tag";
+      span.textContent = col;
+      return span;
+    }));
+  }
+}
+
+function showMetadataError(message) {
+  if (!metaCard) return;
+  if (metaBadge) {
+    metaBadge.className = "status-badge error";
+    metaBadge.innerHTML = `<span class="badge-icon">✕</span> <span>Error</span>`;
+  }
+  if (metaErrorText) metaErrorText.textContent = message;
+  if (metaErrorView) metaErrorView.hidden = false;
+  if (table && lastFileName) {
+    metaCard.className = "top-col metadata-card active has-error";
+    if (metaEmptyView) metaEmptyView.hidden = true;
+    if (metaActiveView) metaActiveView.hidden = false;
+  } else {
+    metaCard.className = "top-col metadata-card error";
+    if (metaEmptyView) metaEmptyView.hidden = true;
+    if (metaActiveView) metaActiveView.hidden = true;
+  }
+}
+
 const showLinePoints = document.querySelector("#show-line-points");
 
 showLinePoints.addEventListener("change", () => {
@@ -147,6 +214,7 @@ fileInput.addEventListener("change", async () => {
   try {
     const text = await file.text(); // Read the local file without uploading it.
     table = parseFile(file.name, text); // Replace data only after every point is valid.
+    lastFileName = file.name;
     // Keep the chosen columns when re-importing a file with the same columns.
     selection = reconcileSelection(table.columns, selection);
     view = fullView();
@@ -155,8 +223,11 @@ fileInput.addEventListener("change", async () => {
     render();
     const columns = table.columns.length > 2 ? ` Columns: ${table.columns.join(", ")}.` : "";
     showStatus(`Imported ${file.name}. Points: ${table.rows.length}.${columns}`);
+    updateMetadata(file.name, table);
   } catch (error) {
-    showStatus(error instanceof DOMException ? "Unable to read this file." : error.message, true);
+    const message = error instanceof DOMException ? "Unable to read this file." : error.message;
+    showStatus(message, true);
+    showMetadataError(message);
   } finally {
     fileInput.value = ""; // Allow selecting the same file again.
     importButton.disabled = false;
