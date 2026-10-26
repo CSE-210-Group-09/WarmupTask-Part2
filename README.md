@@ -46,3 +46,7 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 
 Unit tests need only Node.js: `node --test tests/*.test.cjs`. Browser tests use Playwright: `npm install`, `npx playwright install chromium`, then `npm run test:e2e`. See [docs/testing.md](docs/testing.md).
 No dependencies or build step are required to use the website.
+
+## Project documentation
+
+See the [documentation guide](docs/README.md) for design, testing, feature proposals and engineering practices. The [change log](CHANGELOG.md) records additions and validation.
