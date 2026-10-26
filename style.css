@@ -18,33 +18,131 @@ button:hover { background: #1948a6; }
 #status { min-height: 24px; margin: 12px 0 0; font-size: 13px; }
 #status.error, #export-status.error { color: #b42318; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
-.scale-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+
+/* Control sections layout */
+.controls-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  margin-top: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #dce2ea;
+}
+.control-col {
+  display: flex;
+  flex-direction: column;
+}
+.controls-grid .scale-controls {
+  padding-right: 24px;
+  border-right: 1px solid #dce2ea;
+}
+.controls-grid .label-controls {
+  padding: 0 24px;
+  border-right: 1px solid #dce2ea;
+}
+.controls-grid .column-selection {
+  padding-left: 24px;
+}
+.controls-grid #column-controls[hidden] {
+  display: flex;
+  visibility: hidden;
+}
+
+.control-heading {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #202b3c;
+}
+.scale-controls .control-heading {
+  margin: 14px 0 6px;
+}
+.scale-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
 .scale-controls button[aria-pressed="true"] { background: #245bc5; color: white; }
-#scale-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
-.label-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-.label-controls label { display: flex; align-items: center; gap: 8px; }
-input[type="text"] { width: 160px; padding: 7px 10px; border: 1px solid #bac4d2; border-radius: 4px; }
-.column-controls { margin-top: 18px; }
-.column-controls > label { margin-right: 8px; }
-.column-controls fieldset { margin: 12px 0 0; padding: 10px 14px 12px; border: 1px solid #dce2ea; border-radius: 6px; }
-.column-controls legend { padding: 0 6px; font-size: 13px; color: #647184; }
-#y-columns { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+#scale-help { margin: 0; color: #647184; font-size: 13px; }
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.label-controls label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+input[type="text"] {
+  width: 90px;
+  padding: 6px 10px;
+  border: 1px solid #bac4d2;
+  border-radius: 4px;
+}
+.select-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+select {
+  padding: 6px 10px;
+  border: 1px solid #bac4d2;
+  border-radius: 4px;
+  background: white;
+  color: inherit;
+}
+
+.fieldsets-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.fieldsets-row fieldset {
+  margin: 0;
+  padding: 10px 14px 12px;
+  border: 1px solid #dce2ea;
+  border-radius: 6px;
+  min-height: 58px;
+}
+.fieldsets-row legend {
+  padding: 0 6px;
+  font-size: 13px;
+  color: #647184;
+}
+.lines-controls:has(#y-columns:empty) {
+  visibility: hidden;
+}
+#y-columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+}
 .series-option { display: flex; align-items: center; gap: 8px; }
 .series-option label { display: flex; align-items: center; gap: 6px; }
+.zoom-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+#zoom-status { margin: 0; font-size: 13px; }
+#zoom-help { margin: 16px 0 0; color: #647184; font-size: 13px; }
 svg .legend text { fill: #202b3c; }
 .legend-box { fill: white; fill-opacity: 0.9; stroke: #dce2ea; }
 input[type="color"] { width: 44px; height: 36px; padding: 3px; border: 1px solid #bac4d2; border-radius: 4px; background: white; cursor: pointer; }
-.zoom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
-#zoom-status { margin: 0; font-size: 13px; }
-#zoom-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
 /* While zoomed, dragging pans the chart (on touch screens too) instead of scrolling. */
 svg.zoomed { cursor: grab; touch-action: none; }
 .chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
 .chart-option input { margin: 0; }
 .export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
-select { padding: 7px; border: 1px solid #bac4d2; border-radius: 4px; background: white; color: inherit; }
 #export-status { min-height: 20px; font-size: 13px; }
-.hint { margin: 20px 0 10px; }
+.hint { margin: 14px 0 10px; }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
 svg { display: block; width: 100%; height: auto; }
@@ -74,6 +172,22 @@ svg .axis-label { font-weight: 600; }
 footer { margin-top: 18px; }
 @media (max-width: 720px) {
   main { margin: 20px auto; padding: 0 12px; }
+  .controls-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .controls-grid .scale-controls,
+  .controls-grid .label-controls,
+  .controls-grid .column-selection {
+    padding: 0;
+    border-right: none;
+  }
+  .controls-grid .scale-controls,
+  .controls-grid .label-controls {
+    padding-bottom: 16px;
+    border-bottom: 1px solid #dce2ea;
+  }
+  .fieldsets-row { grid-template-columns: 1fr; }
   .charts { grid-template-columns: 1fr; }
   .controls, .chart { padding: 16px; }
 }
