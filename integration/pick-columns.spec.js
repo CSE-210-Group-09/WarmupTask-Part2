@@ -1,7 +1,7 @@
 // Story: As a user, I want to be able to pick which columns to plot.
 //   Let the user plot multiple lines; pick a target variable and multiple columns.
 const { test, expect } = require("@playwright/test");
-const { importFile, markers } = require("./helpers.cjs");
+const { importFile, markers } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 const cities = fs.readFileSync("test-data/city-temperatures.csv", "utf8"); // day, cityA_temp, cityB_temp; 14 rows

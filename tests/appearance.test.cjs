@@ -1,11 +1,11 @@
 // Integration for the appearance story (issue #26): where the legend goes, from
 // data through scale.js and view.js to positions on the plot, then layout.js.
 // The story's other settings (hover color, point size, title) have no logic
-// outside the page and are covered by e2e/appearance-settings.spec.js.
+// outside the page and are covered by integration/appearance-settings.spec.js.
 // Written before the story's code; see docs/testing.md.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { loadScripts } = require("../load.cjs");
+const { loadScripts } = require("./load.cjs");
 
 const { createAxis, fullView, viewPosition, legendBox, emptiestCorner } = loadScripts(
   ["scale.js", "view.js", "layout.js"],

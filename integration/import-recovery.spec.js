@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { importFile, markers } = require("./helpers.cjs");
+const { importFile, markers } = require("../e2e/helpers.cjs");
 
 for (const [name, contents, error] of [
   ["broken.csv", "x,y\n1,2\n3,nope", /Row 3/],

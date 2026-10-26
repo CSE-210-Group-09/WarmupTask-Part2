@@ -1,8 +1,8 @@
-// Integration: the path from an imported file to chart positions, through
+// The path from an imported file to chart positions, through
 // data.js, scale.js and view.js together, as app.js wires them (no browser).
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { loadScripts } = require("../load.cjs");
+const { loadScripts } = require("./load.cjs");
 
 const {
   parseCSVTable, reconcileSelection, seriesFor, createAxis, formatTicks,

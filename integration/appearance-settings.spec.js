@@ -3,7 +3,7 @@
 //   sizes scatter points, a title shows above the charts and in exports, and
 //   the legend can be moved off the data.
 const { test, expect } = require("@playwright/test");
-const { PLOT, importFile } = require("./helpers.cjs");
+const { PLOT, importFile } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 const middle = { x: (PLOT.left + PLOT.right) / 2, y: (PLOT.top + PLOT.bottom) / 2 };
