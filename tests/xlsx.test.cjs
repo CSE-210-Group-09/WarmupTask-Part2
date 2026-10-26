@@ -44,7 +44,7 @@ test("the XML reader drops namespace prefixes and decodes entities and CDATA", (
   const [a] = root.children;
   assert.equal(a.name, "a");
   assert.equal(a.attributes.id, "1");
-  assert.deepEqual(descendants(root, "b").map((b) => b.text), ["1 < 2 & A", ""]);
+  assert.deepEqual([...descendants(root, "b").map((b) => b.text)], ["1 < 2 & A", ""]);
   assert.equal(descendants(root, "b")[0].attributes.k, "v & w");
   assert.equal(descendants(root, "c")[0].text, "<raw>");
 });
