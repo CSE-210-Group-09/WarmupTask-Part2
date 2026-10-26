@@ -54,7 +54,9 @@ svg .axis-label { font-weight: 600; }
 .axis { stroke: #9ca9ba; fill: none; }
 .line { fill: none; stroke-width: 2; }
 .point { stroke: white; stroke-width: 2; }
-.point:hover, .point:focus { fill: #d4492c; stroke: #d4492c; outline: none; }
+/* Hover and focus keep the line's color (the fill attribute) and add a dark ring,
+   which shows against every palette color, including yellow. */
+.point:hover, .point:focus { stroke: #202b3c; stroke-width: 3; outline: none; }
 #point-tooltip {
   position: fixed;
   z-index: 10;
