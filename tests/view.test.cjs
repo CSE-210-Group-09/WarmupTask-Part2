@@ -4,12 +4,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const {
-  MIN_SPAN, MAX_SPAN, fullView, isFullView, placeRange, zoomRange, panRange,
+  MIN_SPAN, MAX_SPAN, fullView, isFullView, placeRange, zoomRange, panRange, overviewRange,
   viewPosition, viewRatio, zoomLevel
 } = vm.runInNewContext(
   fs.readFileSync(path.join(__dirname, "../view.js"), "utf8") +
   "; ({ MIN_SPAN, MAX_SPAN, fullView, isFullView, placeRange, zoomRange, panRange," +
-  " viewPosition, viewRatio, zoomLevel });"
+  " overviewRange, viewPosition, viewRatio, zoomLevel });"
 );
 
 const close = (actual, expected) =>
@@ -95,4 +95,14 @@ test("only the data's own range counts as the full view", () => {
   assert.ok(!isFullView({ x: [0, 0.5], y: [0, 1] }));
   assert.ok(!isFullView({ x: [-0.5, 1.5], y: [-0.5, 1.5] }), "zoomed out");
   assert.ok(!isFullView({ x: [0.2, 1.2], y: [0, 1] }), "panned at 1x");
+});
+
+test("the minimap frame covers both the data and the view", () => {
+  // Zoomed in: the frame is the data, and the view is a box inside it.
+  assert.deepEqual([...overviewRange([0.375, 0.625])], [0, 1]);
+  // Zoomed out: the frame is the view, and the data is a box inside it.
+  assert.deepEqual([...overviewRange([-0.5, 1.5])], [-0.5, 1.5]);
+  // Panned past one edge, or entirely off the data: the frame spans both.
+  assert.deepEqual([...overviewRange([0.8, 1.3])], [0, 1.3]);
+  assert.deepEqual([...overviewRange([-2, -1])], [-2, 1]);
 });
