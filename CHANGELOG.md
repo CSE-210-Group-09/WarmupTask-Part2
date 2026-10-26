@@ -22,6 +22,11 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Hover keeps the line's color (issue #27)
+
+- A hovered or focused point now keeps its line's color, with a dark ring, instead of turning orange-red. `style.css` only.
+- Validation: no unit layer (no logic outside CSS). The story's end-to-end hover test failed before and passes after, in Chromium and Firefox.
+
 ### Integration test layer
 
 - Added `npm run test:integration` and `tests/integration/`, for tests that run several pure scripts together in Node. `tests/load.cjs` loads them into one sandbox. The first file, `plot-pipeline.test.cjs`, follows a CSV to chart positions and tick labels (3 tests).

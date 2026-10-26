@@ -13,6 +13,7 @@ Who decided what:
 | PR #4 | XML import |
 | PR #5 | Zoom, pan and reset zoom; browser tests for every user story |
 | PR #6 | Plotting multiple columns |
+| Part 3, issue #26 | Hover color, point size, chart title, legend position |
 
 ## Contents
 
@@ -228,6 +229,7 @@ PR #3 added one "Data color" picker for the single series; its own description n
 
 - **Default colors:** the original blue (`#245bc5`) first, then the Okabe-Ito palette, which stays distinguishable for the common types of color blindness. The rule is simply "the color you chose, otherwise the palette color for the column's position". It can repeat a color you picked for another line; we accepted that to keep the rule simple.
 - **Persistence:** chosen colors are remembered by column name across imports, and exports use them.
+- **Hover and focus (issue #27):** a hovered or focused point keeps its line's color and gets a dark ring (`#202b3c`, 3 units wide). Team 10 turned every hovered point orange-red, which ignored the color you chose and could match another line. A dark ring shows against every palette color, including yellow. **Considered:** a bigger radius, which can't be set from CSS in every browser and shifts neighbouring points' hit areas, or a lighter shade of the line's color, which needs a color per line in the stylesheet.
 - **Considered:** shades of one color, which are hard to tell apart beyond two lines, or a palette menu, which offers less control.
 
 ### 7.3 Legend inside the chart (PR #6)
