@@ -23,7 +23,6 @@
         <!-- Column 1: Import -->
         <div class="top-col import-col">
           <button id="import-button" type="button" aria-describedby="import-help">Import CSV or XML</button>
-          <p class="import-subtext">Supports .csv and .xml up to 10MB</p>
         </div>
 
         <!-- Column 2: CSV Format Card -->
@@ -105,11 +104,11 @@
 
     <div class="controls-grid">
       <section class="control-col scale-controls" aria-label="Axis scale">
+        <h3 class="control-heading">Scale Controls</h3>
         <div class="scale-buttons">
           <button id="log-x" class="secondary" type="button" aria-pressed="false" aria-describedby="scale-help" disabled>X: Switch to log scale</button>
           <button id="log-y" class="secondary" type="button" aria-pressed="false" aria-describedby="scale-help" disabled>Y: Switch to log scale</button>
         </div>
-        <h3 class="control-heading">Scale Controls</h3>
         <p id="scale-help" aria-live="polite">Import a CSV or XML file to change the axis scales.</p>
       </section>
 
@@ -132,21 +131,21 @@
       </section>
     </div>
 
-    <div class="fieldsets-row">
-      <fieldset class="lines-controls">
-        <legend>Lines (Y axis) and their colors</legend>
+    <div class="lower-controls-row">
+      <section id="lines-controls" class="control-card lines-controls" aria-label="Lines (Y axis) and their colors" hidden>
+        <h3 class="control-heading">Lines (Y axis) and their colors</h3>
         <div id="y-columns"></div>
-      </fieldset>
+      </section>
 
-      <fieldset class="zoom-controls" aria-label="Zoom">
-        <legend>Zoom Controls</legend>
+      <section class="control-card zoom-controls" aria-label="Zoom">
+        <h3 class="control-heading">Zoom Controls</h3>
         <div class="zoom-button-group">
           <button id="zoom-in" class="secondary" type="button" disabled aria-describedby="zoom-help">Zoom in</button>
           <button id="zoom-out" class="secondary" type="button" disabled aria-describedby="zoom-help">Zoom out</button>
           <button id="zoom-reset" class="secondary" type="button" disabled>Reset zoom</button>
           <p id="zoom-status" role="status" aria-live="polite"></p>
         </div>
-      </fieldset>
+      </section>
     </div>
 
     <p id="zoom-help">Ctrl + scroll (⌘ + scroll on a Mac) or pinch on a chart to zoom there. Drag to pan while zoomed. Both charts share the view.</p>

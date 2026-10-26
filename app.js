@@ -22,6 +22,7 @@ const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
 const columnControls = document.querySelector("#column-controls");
+const linesControls = document.querySelector("#lines-controls");
 const xColumnSelect = document.querySelector("#x-column");
 const yColumnList = document.querySelector("#y-columns");
 const zoomButtons = {
@@ -156,6 +157,7 @@ function updateSeries() {
 // The column picker: an X column and a checkbox and color per possible line.
 function buildColumnControls() {
   columnControls.hidden = !table;
+  if (linesControls) linesControls.hidden = !table;
   if (!table) return;
   xColumnSelect.replaceChildren(...table.columns.map((name) => new Option(name, name, false, name === selection.x)));
   yColumnList.replaceChildren(...table.columns.filter((name) => name !== selection.x).map((name) => {
