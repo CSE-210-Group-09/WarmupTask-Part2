@@ -22,6 +22,12 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Legend position (issue #30)
+
+- A **Legend position** menu: Auto (the corner covering the fewest points in view, the default) or one of the four corners, applied to both charts and to exports.
+- New `layout.js`: `legendBox` and `emptiestCorner`. `app.js` passes each chart's point positions to `drawLegend`.
+- Validation: unit tests written first (4 in `tests/layout.test.cjs`), then the code. 30 unit, 7 integration and 68 browser tests (Chromium and Firefox) pass, and the appearance specs passed 5 repeated runs.
+
 ### Chart title (issue #29)
 
 - A **Chart title** field sets a title shown above both charts and used as the heading and `<title>` of exported images. Blank keeps the old "Line graph" and "Scatter plot" headings.

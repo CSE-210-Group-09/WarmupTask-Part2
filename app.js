@@ -35,6 +35,8 @@ let view = fullView();
 
 const showLinePoints = document.querySelector("#show-line-points");
 const pointSize = document.querySelector("#point-size");
+const legendPosition = document.querySelector("#legend-position");
+legendPosition.addEventListener("change", render);
 const chartTitleInput = document.querySelector("#chart-title");
 const chartTitleText = document.querySelector("#chart-title-text");
 
@@ -340,7 +342,9 @@ function drawChart(svg, connectPoints) {
     const radius = connectPoints ? 6 : Number(pointSize.value);
     for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside, radius);
   }
-  drawLegend(svg);
+  // Every point in view counts for the legend's corner, drawn as a marker or not,
+  // so both charts agree.
+  drawLegend(svg, series.flatMap((line) => line.points.map((point) => ({ x: scaleX(point.x), y: scaleY(point.y) }))));
 }
 
 function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
@@ -363,9 +367,10 @@ function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
   });
 }
 
-// With two or more lines, a legend in the plot's top-right corner names each
-// color. It is part of the SVG, so exported images include it.
-function drawLegend(svg) {
+// With two or more lines, a legend in a corner of the plot names each color:
+// the chosen corner, or on Auto the one covering the fewest `points` (layout.js).
+// It is part of the SVG, so exported images include it.
+function drawLegend(svg, points) {
   if (series.length < 2) return;
   const legend = svgElement("g", { class: "legend" });
   const box = svgElement("rect", { class: "legend-box", x: -8, y: 0, rx: 4, height: 8 + series.length * 16 });
@@ -379,9 +384,12 @@ function drawLegend(svg) {
   });
   svg.append(legend);
   // Size the box to the longest name once the text can be measured.
-  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width));
-  box.setAttribute("width", width + 16);
-  legend.setAttribute("transform", `translate(${PLOT.right - width - 14} ${PLOT.top + 6})`);
+  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width)) + 16;
+  const height = 8 + series.length * 16;
+  box.setAttribute("width", width);
+  const corner = legendPosition.value === "auto" ? emptiestCorner(points, PLOT, width, height) : legendPosition.value;
+  const at = legendBox(corner, PLOT, width, height);
+  legend.setAttribute("transform", `translate(${at.x + 8} ${at.y})`); // The box starts 8 left of the group.
 }
 
 // A constant axis has nothing to zoom into: its single value stays centered.
