@@ -11,7 +11,7 @@ npm run test:e2e                  # Playwright, serves the site with e2e/server.
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 ## Browser tests (`e2e/`)
 
@@ -22,6 +22,7 @@ One file per user story, each test named after the behaviour it checks:
 | `read-only-chart.spec.js` | I don't want to be able to modify the chart after creating it |
 | `view-many-points.spec.js` | I want to be able to properly view 100+ points |
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
+| `import-recovery.spec.js` | Failed imports preserve configured plots; corrected files can be re-imported |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
 
