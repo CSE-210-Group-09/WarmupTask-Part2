@@ -22,6 +22,12 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Integration test layer
+
+- Added `npm run test:integration` and `tests/integration/`, for tests that run several pure scripts together in Node. `tests/load.cjs` loads them into one sandbox. The first file, `plot-pipeline.test.cjs`, follows a CSV to chart positions and tick labels (3 tests).
+- `docs/testing.md` and `docs/engineering-practices.md` describe the test-first workflow: end-to-end and integration tests when a story starts, unit tests before each task, with `story/<slug>` and `task/<slug>/<task>` branches.
+- Validation: 26 unit and 3 integration tests pass; the browser suite (58 tests in Chromium and Firefox) is unchanged.
+
 ### Validation on 2026-10-25
 
 - `npm ci` completed; Playwright Chromium, Firefox and WebKit installed.

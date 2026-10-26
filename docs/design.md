@@ -260,6 +260,10 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 - `view.js`: the zoom anchor stays put, clamping, limits, conversions.
 - `data.js`: CSV and XML tables, every validation error, selections, colors.
 
+**Integration tests** (`tests/integration/*.test.cjs`, Node only) run the pure scripts together, the way `app.js` wires them, from parsed file to chart positions. Each part 3 story adds one file, written with its browser tests before any code ([testing.md](testing.md#three-layers-written-test-first)).
+
+- **Considered:** calling `app.js` from Node with a fake DOM (jsdom). That's a second dependency, and the browser tests already cover the DOM.
+
 **Browser tests** (`e2e/*.spec.js`, Playwright) have one file per user story and drive the page like a user: importing through the real file input, Ctrl + wheel, dragging, clicking, exporting. They run in Chromium and Firefox. WebKit is configured but needs system libraries our Linux server lacks.
 
 | File | Story |
