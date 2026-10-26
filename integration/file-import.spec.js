@@ -2,7 +2,7 @@
 //   only CSV and XML (issue #31). JSON is an array of objects; spreadsheets are
 //   .xlsx workbooks, whose first sheet is read like a CSV.
 const { test, expect } = require("@playwright/test");
-const { importFile, markers, xTickLabels } = require("./helpers.cjs");
+const { importFile, markers, xTickLabels } = require("../e2e/helpers.cjs");
 const { makeWorkbook } = require("../tests/zip.cjs");
 const fs = require("node:fs");
 

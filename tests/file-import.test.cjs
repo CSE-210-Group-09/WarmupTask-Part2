@@ -5,8 +5,8 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { loadScripts } = require("../load.cjs");
-const { makeZip, makeWorkbook } = require("../zip.cjs");
+const { loadScripts } = require("./load.cjs");
+const { makeZip, makeWorkbook } = require("./zip.cjs");
 
 const { parseCSVTable, parseJSONTable, parseXLSX, reconcileSelection, seriesFor } = loadScripts(
   ["data.js", "xlsx.js"],
@@ -15,7 +15,7 @@ const { parseCSVTable, parseJSONTable, parseXLSX, reconcileSelection, seriesFor 
   { DecompressionStream, Blob, Response, TextDecoder }
 );
 
-const read = (name) => fs.readFileSync(path.join(__dirname, "../..", name));
+const read = (name) => fs.readFileSync(path.join(__dirname, "..", name));
 // Values from the sandbox have other prototypes; compare them as plain data.
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const lines = (table) => plain(seriesFor(table, reconcileSelection(table.columns, null)));

@@ -297,11 +297,9 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 - `data.js`: CSV, XML and JSON tables, every validation error, selections, colors.
 - `xlsx.js`: the zip reader, the XML reader, cell types and references, the table rules, finding the first sheet.
 
-**Integration tests** (`tests/integration/*.test.cjs`, Node only) run the pure scripts together, the way `app.js` wires them, from parsed file to chart positions. Each part 3 story adds one file, written with its browser tests before any code ([testing.md](testing.md#three-layers-written-test-first)).
+`plot-pipeline.test.cjs` runs the scripts together, the way `app.js` wires them, from parsed file to chart positions.
 
-- **Considered:** calling `app.js` from Node with a fake DOM (jsdom). That's a second dependency, and the browser tests already cover the DOM.
-
-**Browser tests** (`e2e/*.spec.js`, Playwright) have one file per user story and drive the page like a user: importing through the real file input, Ctrl + wheel, dragging, clicking, exporting. They run in Chromium and Firefox. WebKit is configured but needs system libraries our Linux server lacks.
+**Integration tests** (`integration/*.spec.js`, Playwright) have one file per user story and drive the page like a user: importing through the real file input, Ctrl + wheel, dragging, clicking, exporting. They run in Chromium and Firefox. WebKit is configured but needs system libraries our Linux server lacks.
 
 | File | Story |
 |---|---|
@@ -312,10 +310,15 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
 | `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files (issue #31) |
 
+**End-to-end tests** (`e2e/*.spec.js`, Playwright) follow whole workflows across several stories, from import to export. Part 3's workflows were written before its stories and are marked as expected to fail until the stories they need reach `main`.
+
+**Order:** end-to-end tests first for `main`, an integration spec first on each story branch, and unit tests before each task's code. The team agreed this on Oct 23, 2026; [testing.md](testing.md#three-layers-written-test-first) has the steps.
+
 **Choices:**
 - **Playwright** is the one dev dependency, chosen because it drives Chromium, Firefox and WebKit through a single API.
 - **`e2e/server.cjs`** is a 31-line static server, so tests need nothing besides Node.
 - **Considered:** testing only by hand, which is what Team 10 and PRs #1–#4 did. Writing the stories down as tests let us check that our changes didn't break the features already merged.
+- **Considered for the middle layer:** Node tests of several scripts together. They can't see the page, so story-level checks would miss the DOM; those tests are unit tests here.
 
 Totals when PR #6 was opened: 22 unit tests, and 26 browser tests on each of two browsers. See [testing.md](testing.md) for commands and gotchas.
 

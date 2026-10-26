@@ -34,11 +34,13 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - `data.js`: `parseJSONTable`. `app.js`: `.json` files, and unnamed files starting with `[` or `{`, go to it. Added `sample.json` and JSON versions of the test data.
 - Validation: unit tests written first (5), then the code. 31 unit tests pass, and the JSON end-to-end tests pass in Chromium and Firefox. The `.xlsx` tests fail until issue #33.
 
-### Integration test layer
+### Three test layers (team meeting, Oct 23)
 
-- Added `npm run test:integration` and `tests/integration/`, for tests that run several pure scripts together in Node. `tests/load.cjs` loads them into one sandbox. The first file, `plot-pipeline.test.cjs`, follows a CSV to chart positions and tick labels (3 tests).
-- `docs/testing.md` and `docs/engineering-practices.md` describe the test-first workflow: end-to-end and integration tests when a story starts, unit tests before each task, with `story/<slug>` and `task/<slug>/<task>` branches.
-- Validation: 26 unit and 3 integration tests pass; the browser suite (58 tests in Chromium and Firefox) is unchanged.
+- **Unit** (`tests/*.test.cjs`, Node): internal logic. `tests/load.cjs` loads several scripts into one sandbox; `plot-pipeline.test.cjs` follows a CSV to chart positions and tick labels (3 new tests).
+- **Integration** (`integration/*.spec.js`, Playwright): one spec per user story. The six story specs moved here from `e2e/`, unchanged apart from the helper path. Run with `npm run test:integration`.
+- **End-to-end** (`e2e/*.spec.js`, Playwright): workflows across stories. `workflows.spec.js` has two for the features on `main`. `part3-workflows.spec.js` has three for the part 3 stories, marked as expected to fail until the stories they need merge.
+- `docs/testing.md` and `docs/engineering-practices.md` describe the order (end-to-end first, integration per story, unit before each task) and the `story/<slug>` and `task/<slug>/<task>` branches. `playwright.config.js` runs both browser folders.
+- Validation: 29 unit tests pass. In Chromium and Firefox, the 29 integration tests and 2 end-to-end workflows pass, and the 3 part 3 workflows fail as expected (68 browser results).
 
 ### Validation on 2026-10-25
 
