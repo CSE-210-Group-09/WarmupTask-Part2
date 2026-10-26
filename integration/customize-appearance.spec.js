@@ -1,7 +1,7 @@
 // Story: As a user, I want to be able to customize the appearance of the plot.
 //   A color option and editable axis labels.
 const { test, expect } = require("@playwright/test");
-const { importFile } = require("./helpers.cjs");
+const { importFile } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 const axisLabels = (page, chart) => page.locator(`#${chart}-chart text.axis-label`).allTextContents();
