@@ -22,6 +22,12 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Zoom out and pan past the data (issue #21)
+
+- Zoom out now goes past the data, down to 0.1x, and dragging pans past the data's edges. Views stay inside a limit centered on the data. Reset zoom returns to the data's range and stays enabled whenever the view differs from it.
+- `view.js`: `MAX_SPAN`, a limit for `placeRange`, `isFullView` only for the data's own range, and `zoomLevel` reports the axis furthest from 1x. `scale.js`: positions and ticks continue past the data, log ticks add decades, and ticks stop at the largest finite numbers.
+- Validation: unit tests written first (6 new or changed), then the code. 31 unit tests pass, and the zoom-out end-to-end tests pass in Chromium and Firefox. The minimap tests fail until issue #22.
+
 ### Integration test layer
 
 - Added `npm run test:integration` and `tests/integration/`, for tests that run several pure scripts together in Node. `tests/load.cjs` loads them into one sandbox. The first file, `plot-pipeline.test.cjs`, follows a CSV to chart positions and tick labels (3 tests).
