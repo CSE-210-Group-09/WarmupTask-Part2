@@ -37,6 +37,15 @@ input[type="color"] { width: 44px; height: 36px; padding: 3px; border: 1px solid
 .zoom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
 #zoom-status { margin: 0; font-size: 13px; }
 #zoom-help { flex-basis: 100%; margin: 0; color: #647184; font-size: 13px; }
+.minimap { flex-basis: 100%; margin: 0; }
+#minimap { width: 200px; background: white; border: 1px solid #dce2ea; border-radius: 4px; }
+#minimap-caption { color: #647184; font-size: 13px; }
+.minimap-data { fill: #f6f7f9; stroke: #dce2ea; }
+.minimap-line { fill: none; stroke-width: 1; }
+.minimap-view { fill: #245bc5; fill-opacity: 0.12; stroke: #245bc5; stroke-width: 1.5; }
+/* A drag would select tick labels, and the next drag would then move the selection
+   (Chromium cancels the pointer to start drag-and-drop) instead of panning. */
+.charts svg, #minimap { -webkit-user-select: none; user-select: none; }
 /* While zoomed, dragging pans the chart (on touch screens too) instead of scrolling. */
 svg.zoomed { cursor: grab; touch-action: none; }
 .chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }

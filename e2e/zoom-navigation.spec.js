@@ -32,7 +32,7 @@ async function minimapPoint(page, mx, my) {
   const minimap = page.locator("#minimap");
   await minimap.scrollIntoViewIfNeeded();
   const box = await minimap.boundingBox();
-  const viewBox = await minimap.evaluate((svg) => svg.viewBox.baseVal);
+  const viewBox = await minimap.evaluate((svg) => ({ width: svg.viewBox.baseVal.width, height: svg.viewBox.baseVal.height }));
   return { x: box.x + mx * box.width / viewBox.width, y: box.y + my * box.height / viewBox.height };
 }
 

@@ -43,6 +43,11 @@ function panRange([start, end], delta) {
   return placeRange(start - delta * span, span);
 }
 
+// The range a minimap shows: all of the data, and the view wherever it is.
+function overviewRange([start, end]) {
+  return [Math.min(0, start), Math.max(1, end)];
+}
+
 // Position of a full-range fraction inside the visible range (0 to 1 when visible).
 function viewPosition(ratio, [start, end]) {
   return (ratio - start) / (end - start);
