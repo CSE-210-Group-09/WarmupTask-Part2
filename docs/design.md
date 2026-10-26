@@ -13,6 +13,7 @@ Who decided what:
 | PR #4 | XML import |
 | PR #5 | Zoom, pan and reset zoom; browser tests for every user story |
 | PR #6 | Plotting multiple columns |
+| Part 3, issue #31 | JSON and spreadsheet import |
 
 ## Contents
 
@@ -30,7 +31,7 @@ Who decided what:
 
 ## 1. What the site is
 
-A single web page that plots numeric data from a CSV or XML file as two linked charts, a line graph and a scatter plot. Everything happens in the browser: files are read locally, nothing is uploaded, and refreshing clears the data. You can open `index.html` directly or serve the folder with any static server.
+A single web page that plots numeric data from a CSV, XML or JSON file as two linked charts, a line graph and a scatter plot. Everything happens in the browser: files are read locally, nothing is uploaded, and refreshing clears the data. You can open `index.html` directly or serve the folder with any static server.
 
 The user stories it serves:
 
@@ -117,7 +118,7 @@ Lines are split on newlines and cells on commas; quotes around a whole cell are 
 
 The file can have any root element. Each `<point>` is one row; its fields can be attributes (`<point x="1" y="3"/>`), child elements (`<point><x>1</x><y>3</y></point>`), or a mix of both. Names are matched by local name, so namespaced files such as `<d:point d:x="1">` work.
 
-- **Which parser:** `.xml` files use the XML parser and `.csv` files use the CSV parser. For other extensions, content starting with `<` is read as XML.
+- **Which parser:** `.xml` files use the XML parser and `.csv` files use the CSV parser. For other extensions, content starting with `<` is read as XML (and, since 4.7, content starting with `[` or `{` as JSON).
 - **Detecting malformed XML:** browsers report it by inserting a `<parsererror>` element in a browser-specific namespace. The code learns that namespace once by parsing a known-bad string, so a valid file that happens to contain its own `<parsererror>` element isn't rejected. This, and reading namespaced attributes, were fixed while merging PR #4.
 - **Columns (PR #6):** the first point's fields name the columns, and every point must give each of them exactly once. Extra fields are rejected rather than ignored, the same strictness as CSV.
 - **Considered:** a fixed schema with only `x` and `y`, which is too narrow once multiple columns exist, or JSON, which wasn't requested.
@@ -136,6 +137,14 @@ Each line is drawn through its points sorted by X, not in file order.
 - **Why:** for the intended data (measurements against a variable) this gives a clean line even if the file isn't sorted.
 - **Considered:** file order, which supports loops and paths but zigzags when rows are unsorted.
 - **Limitation:** a path that doubles back can't be drawn as a line.
+
+### 4.7 JSON import (issue #32)
+
+A `.json` file is an array of objects, one per row, with a JSON number for each column: `[{"x": 1, "y": 3}, {"x": 2, "y": 5}]`. The first object names the columns, in its key order, and every object must have exactly those keys. `parseJSONTable` in `data.js` produces the same `{ columns, rows }` table as the CSV and XML parsers, so everything after import is unchanged.
+
+- **Strict like CSV (4.2):** values must be JSON numbers. Strings such as `"3"`, booleans, `null`, nested values, missing or extra keys, and numbers too large for JavaScript (`1e400`) reject the file with a message naming the item. Unlike CSV and XML, JSON has a number type, so a quoted `"3"` is the file saying it isn't a number.
+- **Errors:** "The JSON is not valid." for a syntax error. For any other shape, the message shows an example of the expected one.
+- **Considered:** an object of columns (`{"x": [1, 2], "y": [3, 4]}`), which is compact but makes rows of unequal length easy to write and harder to report. Accepting several shapes means more rules to explain for little gain, so we started with the shape most tools export (`df.to_json(orient="records")` in pandas, `JSON.stringify` of an array of records).
 
 ## 5. Scales and axes
 
@@ -258,7 +267,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 **Unit tests** (`tests/*.test.cjs`, Node only) cover the pure logic:
 - `scale.js`: Team 10's extreme-value tests, plus tick labels when zoomed.
 - `view.js`: the zoom anchor stays put, clamping, limits, conversions.
-- `data.js`: CSV and XML tables, every validation error, selections, colors.
+- `data.js`: CSV, XML and JSON tables, every validation error, selections, colors.
 
 **Integration tests** (`tests/integration/*.test.cjs`, Node only) run the pure scripts together, the way `app.js` wires them, from parsed file to chart positions. Each part 3 story adds one file, written with its browser tests before any code ([testing.md](testing.md#three-layers-written-test-first)).
 
@@ -273,6 +282,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files (issue #31) |
 
 **Choices:**
 - **Playwright** is the one dev dependency, chosen because it drives Chromium, Firefox and WebKit through a single API.
