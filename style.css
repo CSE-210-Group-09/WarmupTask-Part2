@@ -55,6 +55,11 @@ svg .axis-label { font-weight: 600; }
 .line { fill: none; stroke-width: 2; }
 .point { stroke: white; stroke-width: 2; }
 .point:hover, .point:focus { fill: #d4492c; stroke: #d4492c; outline: none; }
+/* The crosshair follows the pointer without catching it, so markers keep their tooltips. */
+.crosshair { pointer-events: none; }
+.crosshair-line { stroke: #647184; stroke-width: 1; stroke-dasharray: 4 3; }
+.crosshair-readout rect { fill: #202b3c; }
+svg .crosshair-readout text { fill: white; font-size: 11px; text-anchor: middle; }
 #point-tooltip {
   position: fixed;
   z-index: 10;

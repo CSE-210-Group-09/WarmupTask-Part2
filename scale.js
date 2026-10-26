@@ -19,6 +19,18 @@ function formatTicks(values) {
   return values.map((value) => formatTick(value, 17));
 }
 
+// Label a single value read off an axis, such as the one under the crosshair.
+// `resolution` is how much the value changes across one pixel there: show just
+// enough significant digits to tell neighbouring pixels apart, at least the 3
+// that ticks use (also when there is nothing to resolve) and at most 17.
+function formatReadout(value, resolution) {
+  let precision = 3;
+  if (value !== 0 && resolution > 0 && Number.isFinite(resolution)) {
+    precision = Math.ceil(Math.log10(Math.abs(value) / resolution));
+  }
+  return formatTick(value, Math.min(17, Math.max(3, precision)));
+}
+
 function interpolate(min, max, ratio) {
   if (ratio === 0) return min;
   if (ratio === 1) return max;

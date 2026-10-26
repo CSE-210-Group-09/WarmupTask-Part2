@@ -13,6 +13,7 @@ Who decided what:
 | PR #4 | XML import |
 | PR #5 | Zoom, pan and reset zoom; browser tests for every user story |
 | PR #6 | Plotting multiple columns |
+| Issue #24 | Shared crosshair on both charts |
 
 ## Contents
 
@@ -41,6 +42,7 @@ The user stories it serves:
 | I want to be able to customize the appearance of the plot | PR #2 (labels), PR #3 and PR #6 (color) |
 | I want to be able to pick which columns to plot | PR #6 |
 | I want to create a plot from an XML file | PR #4, extended in PR #6 |
+| I want to compare data points across both charts (#23) | Issue #24 (shared crosshair) |
 
 ## 2. How the code is organized
 
@@ -211,6 +213,23 @@ After import, a "Columns to plot" panel shows a menu for the X column and a chec
 - Changing the columns resets the zoom, because the ranges change.
 - **Considered:** a multi-select list, which is hard to use with a mouse and hard to read, or drag-and-drop column chips, which is more code and weaker for keyboard users.
 
+### 6.6 Shared crosshair (issue #24)
+
+Moving the pointer over either plot area draws a dashed vertical and horizontal line through it on **both** charts, with a dark readout on each axis giving the value there. Because the charts share their axes and view (6.1, 6.4), one position in plot fractions marks the same X and Y values on both, so the crosshair is stored once, as that position, and drawn on each chart.
+
+- **When it shows:** inside the plot area only. It hides when the pointer leaves the plot, when a drag to pan starts (it returns on the next move), when a touch turns into a page scroll, and when the page scrolls, since the chart moves under a still pointer (the tooltip already hid on scroll for the same reason). A crosshair on a focused point stays on scroll, because it moves with its chart and tabbing to an off-screen point scrolls the page. Ctrl + wheel zoom keeps it, and the value under it, at the pointer.
+- **Keyboard:** focusing a marker puts the crosshair through that point on both charts, so keyboard users can compare too.
+- **Readouts:** the value at the crosshair is read through the zoomed view and the axis, so log axes and zoom work unchanged. `formatReadout` in `scale.js` shows enough digits to tell positions a pixel apart (at least 3, like ticks), so readouts gain digits as you zoom in. The X readout is kept inside the chart near its edges.
+- **Drawing:** each chart gets a hidden crosshair layer when it is drawn. Pointer moves only update that layer's attributes rather than redrawing the chart (`setCrosshair`, `placeCrosshair` in `app.js`). The layer sits below the markers and ignores the pointer, so markers keep their tooltips. Screen readers skip it (`aria-hidden`): focused markers already announce their values.
+- **Export:** the crosshair is removed from exported images, since it follows the pointer rather than being part of the chart.
+
+| Choice | Why | Considered |
+|---|---|---|
+| Free crosshair that follows the pointer exactly | Matches the issue; lets you read any position, between points too | Snapping to the nearest point, which is issue #25 and can build on this |
+| One position shared by both charts | Same values on both by construction | Mapping data values per chart, which is the same thing here with more code |
+| Update a layer instead of redrawing | Pointer moves fire many times a frame; a full redraw per move would be slow with many points | Calling `render()` on every move |
+| Readouts on the axes | Show exact values without covering data | A floating label beside the pointer, which covers points and the tooltip |
+
 ## 7. Appearance
 
 ### 7.1 Editable axis labels (PR #2, issue #7; defaults changed in PR #6)
@@ -249,7 +268,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 
 - Status messages (import result, scale explanation, zoom status, export result) are live regions, so screen readers announce them.
 - The log buttons report their state with `aria-pressed`, and disabled buttons explain why in nearby text.
-- Every control has a label. Markers are focusable, with labels naming each value, and the tooltip also appears on focus (6.2).
+- Every control has a label. Markers are focusable, with labels naming each value, and the tooltip also appears on focus (6.2). Focus also shows the shared crosshair through the point (6.6).
 - Zoom works from buttons as well as the wheel, and none of the features require a mouse.
 - **Gaps:** the charts haven't been tested with a real screen reader, and there's no text alternative listing all values, such as a data table.
 
@@ -269,6 +288,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `compare-points.spec.js` | I want to compare data points across both charts (#23): shared crosshair (#24) |
 
 **Choices:**
 - **Playwright** is the one dev dependency, chosen because it drives Chromium, Firefox and WebKit through a single API.
