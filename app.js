@@ -340,6 +340,10 @@ function drawMarkers(svg, line, scaleX, scaleY, inside) {
     circle.addEventListener("pointerleave", hideTooltip);
     circle.addEventListener("focus", () => showTooltip(circle, text));
     circle.addEventListener("blur", hideTooltip);
+    // WebKit treats Backspace outside an editable field as history back; keep focus here.
+    circle.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" || event.key === "Delete") event.preventDefault();
+    });
     svg.append(circle);
   });
 }
