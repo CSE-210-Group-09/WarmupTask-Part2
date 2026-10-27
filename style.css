@@ -369,6 +369,8 @@ svg.meta-doc-icon {
   display: flex;
   flex-direction: column;
 }
+/* Keep the column's place in the grid while it waits for data; display: flex would override hidden. */
+.control-col[hidden] { display: flex; visibility: hidden; }
 .controls-grid .scale-controls {
   padding-right: 24px;
   border-right: 1px solid #dce2ea;
@@ -414,6 +416,9 @@ input[type="text"] {
   border: 1px solid #bac4d2;
   border-radius: 4px;
 }
+/* Room for a chart title; the inputs shrink with their column. */
+.label-controls label { white-space: nowrap; }
+.label-controls input[type="text"] { width: auto; min-width: 0; flex: 0 1 150px; }
 .select-row {
   display: flex;
   align-items: center;
@@ -457,6 +462,7 @@ select {
   align-items: center;
   gap: 8px 22px;
 }
+.legend-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0 0; }
 .series-option { display: flex; align-items: center; gap: 8px; }
 .series-option label { display: flex; align-items: center; gap: 6px; }
 .zoom-button-group {
@@ -470,6 +476,15 @@ select {
 svg .legend text { fill: #202b3c; }
 .legend-box { fill: white; fill-opacity: 0.9; stroke: #dce2ea; }
 input[type="color"] { width: 44px; height: 36px; padding: 3px; border: 1px solid #bac4d2; border-radius: 4px; background: white; cursor: pointer; }
+.minimap { flex-basis: 100%; margin: 0; }
+#minimap { width: 200px; background: white; border: 1px solid #dce2ea; border-radius: 4px; }
+#minimap-caption { color: #647184; font-size: 13px; }
+.minimap-data { fill: #f6f7f9; stroke: #dce2ea; }
+.minimap-line { fill: none; stroke-width: 1; }
+.minimap-view { fill: #245bc5; fill-opacity: 0.12; stroke: #245bc5; stroke-width: 1.5; }
+/* A drag would select tick labels, and the next drag would then move the selection
+   (Chromium cancels the pointer to start drag-and-drop) instead of panning. */
+.charts svg, #minimap { -webkit-user-select: none; user-select: none; }
 /* While zoomed, dragging pans the chart (on touch screens too) instead of scrolling. */
 svg.zoomed { cursor: grab; touch-action: none; }
 .chart-option { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; }
@@ -477,6 +492,7 @@ svg.zoomed { cursor: grab; touch-action: none; }
 .export-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
 #export-status { min-height: 20px; font-size: 13px; }
 .hint { margin: 14px 0 10px; }
+.chart-title { margin: 0 0 10px; font-size: 18px; }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
 .chart svg { display: block; width: 100%; height: auto; }
@@ -486,7 +502,17 @@ svg .axis-label { font-weight: 600; }
 .axis { stroke: #9ca9ba; fill: none; }
 .line { fill: none; stroke-width: 2; }
 .point { stroke: white; stroke-width: 2; }
-.point:hover, .point:focus { fill: #d4492c; stroke: #d4492c; outline: none; }
+/* Hover and focus keep the line's color (the fill attribute) and add a dark ring,
+   which shows against every palette color, including yellow. */
+.point:hover, .point:focus { stroke: #202b3c; stroke-width: 3; outline: none; }
+/* The crosshair follows the pointer without catching it, so markers keep their tooltips. */
+.crosshair { pointer-events: none; }
+.crosshair-line { stroke: #647184; stroke-width: 1; stroke-dasharray: 4 3; }
+.crosshair-readout rect { fill: #202b3c; }
+svg .crosshair-readout text { fill: white; font-size: 11px; text-anchor: middle; }
+/* Dots on the snapped points of a line graph without markers (#25). */
+.snap-hover { pointer-events: none; }
+.snap-dot { stroke: white; stroke-width: 1.5; }
 #point-tooltip {
   position: fixed;
   z-index: 10;

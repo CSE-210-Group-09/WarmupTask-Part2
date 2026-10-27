@@ -33,6 +33,19 @@ const zoomButtons = {
 const zoomStatus = document.querySelector("#zoom-status");
 // Both charts share one view, so they always show the same part of the data.
 let view = fullView();
+// The crosshair's position as fractions of the plot area (0 at the left or
+// bottom edge, 1 at the right or top), or null while it is hidden. The charts
+// share their axes and view, so one position marks the same values on both.
+// `fromPointer` tells a crosshair following the pointer from one on a focused point.
+let crosshair = null;
+// The axes of the charts as last drawn, for reading values under the crosshair.
+let axes = null;
+const charts = () => document.querySelectorAll(".charts svg");
+// Snapping (#25): with its markers hidden, the line graph has nothing to hover,
+// so the pointer snaps to the data point nearest by X. While it is snapped,
+// `snap` holds the pointer's position (plot fractions) and the X value.
+let snap = null;
+const lineChart = document.querySelector("#line-chart");
 
 const metaCard = document.querySelector("#metadata-card");
 const metaBadge = document.querySelector("#meta-status-badge");
@@ -102,10 +115,30 @@ function showMetadataError(message) {
 }
 
 const showLinePoints = document.querySelector("#show-line-points");
+const pointSize = document.querySelector("#point-size");
+const legendPosition = document.querySelector("#legend-position");
+legendPosition.addEventListener("change", render);
+const chartTitleInput = document.querySelector("#chart-title");
+const chartTitleText = document.querySelector("#chart-title-text");
 
 showLinePoints.addEventListener("change", () => {
   hideTooltip();
   drawChart(document.querySelector("#line-chart"), true);
+  exportStatus.textContent = "";
+});
+
+// Scatter point radius; the line graph's markers keep theirs, since they sit on the line.
+pointSize.addEventListener("input", () => {
+  document.querySelector("#point-size-value").textContent = pointSize.value;
+  hideTooltip();
+  drawChart(document.querySelector("#scatter-chart"), false);
+  exportStatus.textContent = "";
+});
+
+// A typed title shows above both charts and names exported images; blank hides it.
+chartTitleInput.addEventListener("input", () => {
+  chartTitleText.textContent = chartTitleInput.value.trim();
+  chartTitleText.hidden = !chartTitleText.textContent;
   exportStatus.textContent = "";
 });
 
@@ -141,11 +174,17 @@ function parseXML(text) {
 }
 
 // Choose a parser by file extension, falling back to content for unnamed types.
-function parseFile(name, text) {
-  const extension = name.toLowerCase().split(".").pop();
+// Files are read locally, without uploading them.
+async function parseFile(file) {
+  const extension = file.name.toLowerCase().split(".").pop();
+  if (extension === "xlsx") return parseXLSX(new Uint8Array(await file.arrayBuffer()));
+  const text = await file.text();
   if (extension === "xml") return parseXML(text);
+  if (extension === "json") return parseJSONTable(text);
   if (extension === "csv") return parseCSVTable(text);
-  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSVTable(text);
+  const start = text.trimStart()[0];
+  if (start === "<") return parseXML(text);
+  return start === "[" || start === "{" ? parseJSONTable(text) : parseCSVTable(text);
 }
 
 // Rebuild the plotted series after the data, the selection or a color changes.
@@ -214,8 +253,7 @@ fileInput.addEventListener("change", async () => {
   if (!file) return;
   importButton.disabled = true;
   try {
-    const text = await file.text(); // Read the local file without uploading it.
-    table = parseFile(file.name, text); // Replace data only after every point is valid.
+    table = await parseFile(file); // Replace data only after every point is valid.
     lastFileName = file.name;
     // Keep the chosen columns when re-importing a file with the same columns.
     selection = reconcileSelection(table.columns, selection);
@@ -253,7 +291,14 @@ function showTooltip(circle, text) {
   tooltip.style.top = `${Math.max(8, Math.min(top, window.innerHeight - box.height - 8))}px`;
 }
 
-window.addEventListener("scroll", hideTooltip, true);
+// Scrolling moves the charts under a still pointer, so hide what follows it.
+// A crosshair on a focused point scrolls with its chart, so it stays: tabbing
+// to a point off-screen scrolls the page.
+window.addEventListener("scroll", () => {
+  hideTooltip();
+  clearSnap();
+  if (crosshair?.fromPointer) setCrosshair(null);
+}, true);
 window.addEventListener("resize", hideTooltip);
 
 // Create SVG elements in the SVG namespace.
@@ -317,7 +362,12 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
+  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a data file to change the axis scales.";
+}
+
+// One axis per direction across every plotted line, shared by both charts and the minimap.
+function chartAxes() {
+  return { x: createAxis(...dataRange("x"), logScale.x), y: createAxis(...dataRange("y"), logScale.y) };
 }
 
 // Plot area in the fixed SVG coordinates; CSS scales the chart to fit its container.
@@ -327,13 +377,13 @@ const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (!hasData()) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file to see the chart"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a data file to see the chart"));
     return;
   }
 
   const { left, right, top, bottom } = PLOT;
-  const xAxis = createAxis(...dataRange("x"), logScale.x);
-  const yAxis = createAxis(...dataRange("y"), logScale.y);
+  axes = chartAxes();
+  const { x: xAxis, y: yAxis } = axes;
   // Map through the full axis first, then through the zoomed view.
   const scaleX = (x) => left + viewPosition(xAxis.position(x), view.x) * (right - left);
   const scaleY = (y) => bottom - viewPosition(yAxis.position(y), view.y) * (bottom - top);
@@ -387,39 +437,195 @@ function drawChart(svg, connectPoints) {
     }
   }
 
+  // Below the markers, so they stay on top and keep their tooltips.
+  drawCrosshair(svg);
+  if (connectPoints) drawSnapLayer(svg);
+
   // Hiding markers leaves the line and the scatter plot unchanged.
   // Only points inside the view get a marker, so zooming in on 100+ points
   // leaves fewer, separated markers (and fewer stops for keyboard focus).
   const inside = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
   if (!connectPoints || showLinePoints.checked) {
-    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside);
+    const radius = connectPoints ? 6 : Number(pointSize.value);
+    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside, radius);
   }
-  drawLegend(svg);
+  // Every point in view counts for the legend's corner, drawn as a marker or not,
+  // so both charts agree.
+  drawLegend(svg, series.flatMap((line) => line.points.map((point) => ({ x: scaleX(point.x), y: scaleY(point.y) }))));
 }
 
-function drawMarkers(svg, line, scaleX, scaleY, inside) {
+function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
   const { left, right, top, bottom } = PLOT;
   line.points.forEach((point) => {
     if (!inside(scaleX(point.x), left, right) || !inside(scaleY(point.y), top, bottom)) return;
     // Name the columns, so values from different lines can be told apart.
     const label = `${selection.x}: ${point.x}, ${line.name}: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: line.color,
+      cx: scaleX(point.x), cy: scaleY(point.y), r: radius, class: "point", fill: line.color,
       tabindex: 0, role: "img", "aria-label": label
     });
     // Still focusable so keyboard users can read the values.
     const text = `${selection.x}: ${point.x}\n${line.name}: ${point.y}`;
     circle.addEventListener("pointerenter", () => showTooltip(circle, text));
     circle.addEventListener("pointerleave", hideTooltip);
-    circle.addEventListener("focus", () => showTooltip(circle, text));
-    circle.addEventListener("blur", hideTooltip);
+    // Focus also puts the crosshair through the point, on both charts.
+    circle.addEventListener("focus", () => {
+      showTooltip(circle, text);
+      setCrosshair({
+        x: viewPosition(axes.x.position(point.x), view.x),
+        y: viewPosition(axes.y.position(point.y), view.y)
+      });
+    });
+    circle.addEventListener("blur", () => {
+      hideTooltip();
+      setCrosshair(null);
+    });
+    // WebKit treats Backspace outside an editable field as history back; keep focus here.
+    circle.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" || event.key === "Delete") event.preventDefault();
+    });
     svg.append(circle);
   });
 }
 
-// With two or more lines, a legend in the plot's top-right corner names each
-// color. It is part of the SVG, so exported images include it.
-function drawLegend(svg) {
+// Show the crosshair at `position` (plot fractions) on both charts, or hide it with null.
+function setCrosshair(position) {
+  crosshair = position;
+  for (const svg of charts()) placeCrosshair(svg);
+}
+
+// An empty, hidden crosshair: a vertical and a horizontal line through the plot,
+// and a readout on each axis with the value there. placeCrosshair moves and
+// shows it, so following the pointer never redraws the chart. It ignores the
+// pointer (style.css), and screen readers skip it: focused markers have labels.
+function drawCrosshair(svg) {
+  const layer = svgElement("g", { class: "crosshair", "aria-hidden": "true", display: "none" });
+  layer.append(
+    svgElement("line", { class: "crosshair-line crosshair-vertical" }),
+    svgElement("line", { class: "crosshair-line crosshair-horizontal" })
+  );
+  for (const key of ["x", "y"]) {
+    const readout = svgElement("g", { class: `crosshair-readout crosshair-${key}` });
+    readout.append(svgElement("rect", { rx: 3 }), svgElement("text", {}));
+    layer.append(readout);
+  }
+  svg.append(layer);
+  placeCrosshair(svg);
+}
+
+function placeCrosshair(svg) {
+  const layer = svg.querySelector(".crosshair");
+  if (!layer) return;
+  if (!crosshair || !hasData()) {
+    layer.setAttribute("display", "none");
+    return;
+  }
+  layer.removeAttribute("display"); // Shown before measuring the readouts.
+  const { left, right, top, bottom } = PLOT;
+  const x = left + crosshair.x * (right - left);
+  const y = bottom - crosshair.y * (bottom - top);
+  setAttributes(layer.querySelector(".crosshair-vertical"), { x1: x, y1: top, x2: x, y2: bottom });
+  setAttributes(layer.querySelector(".crosshair-horizontal"), { x1: left, y1: y, x2: right, y2: y });
+  // The X readout sits over the tick labels, centered under the line but kept
+  // inside the chart; the Y readout ends at the axis, like the Y tick labels.
+  placeReadout(layer.querySelector(".crosshair-x"), readoutText("x", crosshair.x),
+    (width) => Math.max(0, Math.min(480 - width, x - width / 2)), bottom + 17);
+  placeReadout(layer.querySelector(".crosshair-y"), readoutText("y", crosshair.y),
+    (width) => Math.max(0, left - 4 - width), y);
+}
+
+// Size a readout's box to its text; `boxLeft` turns the width into a position.
+function placeReadout(readout, text, boxLeft, middle) {
+  const [box, label] = readout.children;
+  label.textContent = text;
+  const width = label.getBBox().width + 10;
+  const height = 18;
+  const x = boxLeft(width);
+  setAttributes(box, { x, y: middle - height / 2, width, height });
+  setAttributes(label, { x: x + width / 2, y: middle + 4 });
+}
+
+// The value under the crosshair on one axis. Its digits depend on how much the
+// value changes across a pixel there (formatReadout), which shrinks with zoom.
+function readoutText(key, position) {
+  const range = view[key];
+  const valueAt = (fraction) => axes[key].tick(Math.min(1, Math.max(0, viewRatio(fraction, range))));
+  const pixel = 1 / (key === "x" ? PLOT.right - PLOT.left : PLOT.bottom - PLOT.top);
+  const resolution = Math.abs(valueAt(position + pixel) - valueAt(position - pixel)) / 2;
+  return formatReadout(valueAt(position), resolution);
+}
+
+function setAttributes(element, attributes) {
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+}
+
+// An empty layer for the snapped dots, above the crosshair. A redraw (zoom,
+// import, scale) moves the points, so snap again where the pointer is.
+function drawSnapLayer(svg) {
+  svg.append(svgElement("g", { class: "snap-hover", "aria-hidden": "true" }));
+  if (!snap) return;
+  const snapped = snapAt(snap.position);
+  if (snapped) setCrosshair({ ...snapped, fromPointer: true });
+}
+
+// Snap the line graph to the X value nearest the pointer's `position` (plot
+// fractions), among the points in view. Mark each line's point at that X with a
+// dot in the line's color and list their values in the tooltip. Returns the
+// snapped point, as plot fractions, for the crosshair; null when not snapping
+// (markers shown, no data, outside the plot, or no point in view).
+function snapAt(position) {
+  const layer = lineChart.querySelector(".snap-hover");
+  if (!layer || !hasData() || showLinePoints.checked || !position.inside) {
+    clearSnap();
+    return null;
+  }
+  const { left, right, top, bottom } = PLOT;
+  const toX = (x) => left + viewPosition(axes.x.position(x), view.x) * (right - left);
+  const toY = (y) => bottom - viewPosition(axes.y.position(y), view.y) * (bottom - top);
+  const visible = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
+  // Each X value once; those outside the view can't be snapped to.
+  const xs = [...new Set(allPoints().map((point) => point.x))];
+  const pixels = xs.map((x) => (visible(toX(x), left, right) ? toX(x) : null));
+  const index = nearestIndex(pixels, left + position.x * (right - left));
+  if (index === -1) {
+    clearSnap();
+    return null;
+  }
+
+  const x = xs[index];
+  const cx = pixels[index];
+  const pointerY = bottom - position.y * (bottom - top);
+  // Every line's points at that X (more than one if the X value repeats).
+  const hits = series.flatMap((line) => line.points.filter((point) => point.x === x).map((point) => ({ line, point })));
+  const dots = hits
+    .map(({ line, point }) => ({ cy: toY(point.y), color: line.color }))
+    .filter(({ cy }) => visible(cy, top, bottom))
+    .map(({ cy, color }) => svgElement("circle", { class: "snap-dot", cx, cy, r: 4, fill: color }));
+  layer.replaceChildren(...dots);
+  // The tooltip goes beside the dot nearest the pointer, or at the pointer's
+  // height when every value at this X is above or below the view.
+  const distance = (dot) => Math.abs(Number(dot.getAttribute("cy")) - pointerY);
+  let anchor = dots.reduce((best, dot) => (best && distance(best) <= distance(dot) ? best : dot), null);
+  if (!anchor) {
+    anchor = svgElement("circle", { class: "snap-anchor", cx, cy: pointerY, r: 0 });
+    layer.append(anchor);
+  }
+  showTooltip(anchor, [`${selection.x}: ${x}`, ...hits.map(({ line, point }) => `${line.name}: ${point.y}`)].join("\n"));
+  snap = { position, x };
+  return { x: (cx - left) / (right - left), y: (bottom - Number(anchor.getAttribute("cy"))) / (bottom - top) };
+}
+
+function clearSnap() {
+  if (!snap) return;
+  snap = null;
+  lineChart.querySelector(".snap-hover")?.replaceChildren();
+  hideTooltip();
+}
+
+// With two or more lines, a legend in a corner of the plot names each color:
+// the chosen corner, or on Auto the one covering the fewest `points` (layout.js).
+// It is part of the SVG, so exported images include it.
+function drawLegend(svg, points) {
   if (series.length < 2) return;
   const legend = svgElement("g", { class: "legend" });
   const box = svgElement("rect", { class: "legend-box", x: -8, y: 0, rx: 4, height: 8 + series.length * 16 });
@@ -433,9 +639,12 @@ function drawLegend(svg) {
   });
   svg.append(legend);
   // Size the box to the longest name once the text can be measured.
-  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width));
-  box.setAttribute("width", width + 16);
-  legend.setAttribute("transform", `translate(${PLOT.right - width - 14} ${PLOT.top + 6})`);
+  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width)) + 16;
+  const height = 8 + series.length * 16;
+  box.setAttribute("width", width);
+  const corner = legendPosition.value === "auto" ? emptiestCorner(points, PLOT, width, height) : legendPosition.value;
+  const at = legendBox(corner, PLOT, width, height);
+  legend.setAttribute("transform", `translate(${at.x + 8} ${at.y})`); // The box starts 8 left of the group.
 }
 
 // A constant axis has nothing to zoom into: its single value stays centered.
@@ -454,9 +663,9 @@ function updateZoomControls() {
   const full = isFullView(view);
   const canZoom = hasData() && (zoomable("x") || zoomable("y"));
   zoomButtons.in.disabled = !canZoom || zoomLevel(view) >= 1 / MIN_SPAN - 1e-6;
-  zoomButtons.out.disabled = full;
+  zoomButtons.out.disabled = !canZoom || zoomLevel(view) <= 1 / MAX_SPAN + 1e-6;
   zoomButtons.reset.disabled = full;
-  for (const svg of document.querySelectorAll(".charts svg")) svg.classList.toggle("zoomed", !full);
+  for (const svg of document.querySelectorAll(".charts svg, #minimap")) svg.classList.toggle("zoomed", !full);
   zoomStatus.textContent = !hasData() ? "" : full ? "Showing all points." : `Zoomed ${formatTick(zoomLevel(view), 2)}x.`;
 }
 
@@ -479,7 +688,7 @@ function plotPosition(svg, event) {
   };
 }
 
-for (const svg of document.querySelectorAll(".charts svg")) {
+for (const svg of charts()) {
   // Ctrl/Cmd + wheel zooms (trackpad pinch sends the same event); a plain
   // wheel still scrolls the page, so the charts never trap scrolling.
   svg.addEventListener("wheel", (event) => {
@@ -492,7 +701,8 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     zoomAt(position.x, position.y, factor);
   }, { passive: false });
 
-  // Drag inside the plot to pan; it only does something when zoomed in.
+  // Drag inside the plot to pan, when zoomed in or out (not at the data's own
+  // range, so a finger on the chart still scrolls the page there).
   let drag = null;
   svg.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || !hasData() || isFullView(view)) return;
@@ -501,10 +711,19 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     drag = { start: position, view: { x: [...view.x], y: [...view.y] } };
     svg.setPointerCapture(event.pointerId);
     hideTooltip();
+    clearSnap();
+    setCrosshair(null); // It would point at moving values; it returns on the next move.
   });
   svg.addEventListener("pointermove", (event) => {
-    if (!drag) return;
     const position = plotPosition(svg, event);
+    if (!drag) {
+      // Inside the plot, the crosshair follows the pointer on both charts. On the
+      // line graph with its markers hidden, it follows the snapped point instead.
+      const snapped = svg === lineChart ? snapAt(position) : null;
+      const at = snapped ?? { x: position.x, y: position.y };
+      setCrosshair(hasData() && position.inside ? { ...at, fromPointer: true } : null);
+      return;
+    }
     // Pan from the starting view so rounding never accumulates over a long drag.
     view = {
       x: panRange(drag.view.x, position.x - drag.start.x),
@@ -514,8 +733,17 @@ for (const svg of document.querySelectorAll(".charts svg")) {
   });
   const endDrag = () => { drag = null; };
   svg.addEventListener("pointerup", endDrag);
-  svg.addEventListener("pointercancel", endDrag);
+  svg.addEventListener("pointercancel", () => {
+    endDrag();
+    clearSnap();
+    setCrosshair(null); // A touch that turned into a page scroll.
+  });
   svg.addEventListener("lostpointercapture", endDrag);
+  svg.addEventListener("pointerleave", () => {
+    if (drag) return;
+    setCrosshair(null);
+    clearSnap();
+  });
 }
 
 // The buttons zoom around the center, for keyboard users and mice without a wheel.
@@ -524,6 +752,91 @@ zoomButtons.out.addEventListener("click", () => zoomAt(0.5, 0.5, 2));
 zoomButtons.reset.addEventListener("click", () => {
   view = fullView();
   render();
+});
+
+// The minimap shows all the data and a box for the view. Its frame grows to
+// include the view when zoomed out or panned past the data (overviewRange).
+const minimap = document.querySelector("#minimap");
+const MINIMAP = { left: 4, right: 156, top: 4, bottom: 104 };
+const minimapFrame = () => ({ x: overviewRange(view.x), y: overviewRange(view.y) });
+
+function drawMinimap() {
+  document.querySelector("#minimap-panel").hidden = !hasData();
+  minimap.replaceChildren();
+  if (!hasData()) return;
+  const axes = chartAxes();
+  const frame = minimapFrame();
+  const { left, right, top, bottom } = MINIMAP;
+  const toX = (ratio) => left + viewPosition(ratio, frame.x) * (right - left);
+  const toY = (ratio) => bottom - viewPosition(ratio, frame.y) * (bottom - top);
+  const box = (x, y, className) => svgElement("rect", {
+    class: className, x: toX(x[0]), y: toY(y[1]), width: toX(x[1]) - toX(x[0]), height: toY(y[0]) - toY(y[1])
+  });
+  minimap.append(box([0, 1], [0, 1], "minimap-data"));
+  for (const line of series) {
+    const points = line.points.map((p) => `${toX(axes.x.position(p.x))},${toY(axes.y.position(p.y))}`).join(" ");
+    minimap.append(svgElement("polyline", { points, class: "minimap-line", stroke: line.color }));
+  }
+  minimap.append(box(view.x, view.y, "minimap-view"));
+  const shown = (key) => formatTicks(view[key].map((ratio) => axes[key].tick(ratio))).join(" to ");
+  document.querySelector("#minimap-caption").textContent = `In view: x ${shown("x")}, y ${shown("y")}.`;
+}
+
+// Pointer position as a fraction of the data's range (the units of the view).
+function minimapRatio(event, frame) {
+  const box = minimap.getBoundingClientRect();
+  const viewBox = minimap.viewBox.baseVal;
+  const x = (event.clientX - box.left) * viewBox.width / box.width;
+  const y = (event.clientY - box.top) * viewBox.height / box.height;
+  return {
+    x: viewRatio((x - MINIMAP.left) / (MINIMAP.right - MINIMAP.left), frame.x),
+    y: viewRatio((MINIMAP.bottom - y) / (MINIMAP.bottom - MINIMAP.top), frame.y)
+  };
+}
+
+// Move each zoomable axis of the view so `start` (a range start) is where it begins.
+function moveView(starts) {
+  for (const key of ["x", "y"]) {
+    if (zoomable(key)) view[key] = placeRange(starts[key], view[key][1] - view[key][0]);
+  }
+  scheduleRender();
+}
+
+// Press inside the box and drag to pan; press elsewhere to center the view there
+// first. Like the charts, it does nothing at the data's own range.
+let minimapDrag = null;
+minimap.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || !hasData() || isFullView(view)) return;
+  const frame = minimapFrame();
+  const start = minimapRatio(event, frame);
+  const inBox = ["x", "y"].every((key) => start[key] >= view[key][0] && start[key] <= view[key][1]);
+  if (!inBox) {
+    const half = (key) => (view[key][1] - view[key][0]) / 2;
+    moveView({ x: start.x - half("x"), y: start.y - half("y") });
+  }
+  // Keep the frame from the start of the drag, so the scale doesn't change under the pointer.
+  minimapDrag = { frame, start, view: { x: [...view.x], y: [...view.y] } };
+  minimap.setPointerCapture(event.pointerId);
+});
+minimap.addEventListener("pointermove", (event) => {
+  if (!minimapDrag) return;
+  const now = minimapRatio(event, minimapDrag.frame);
+  const { start, view: from } = minimapDrag;
+  moveView({ x: from.x[0] + now.x - start.x, y: from.y[0] + now.y - start.y });
+});
+const endMinimapDrag = () => { minimapDrag = null; };
+minimap.addEventListener("pointerup", endMinimapDrag);
+minimap.addEventListener("pointercancel", endMinimapDrag);
+minimap.addEventListener("lostpointercapture", endMinimapDrag);
+
+// Arrow keys move the view a tenth of its width or height, so panning needs no mouse.
+minimap.addEventListener("keydown", (event) => {
+  const step = { ArrowLeft: ["x", 0.1], ArrowRight: ["x", -0.1], ArrowDown: ["y", 0.1], ArrowUp: ["y", -0.1] }[event.key];
+  if (!step || !hasData() || isFullView(view)) return;
+  event.preventDefault();
+  const [key, delta] = step;
+  if (zoomable(key)) view[key] = panRange(view[key], delta);
+  scheduleRender();
 });
 
 function render() {
@@ -535,6 +848,7 @@ function render() {
   for (const key of ["x", "y"]) axisLabelInputs[key].placeholder = defaultAxisLabel(key);
   drawChart(document.querySelector("#line-chart"), true);
   drawChart(document.querySelector("#scatter-chart"), false);
+  drawMinimap();
 }
 
 // Make the SVG self-contained so downloaded images keep their colors and fonts.
@@ -542,6 +856,8 @@ function chartImage(svg, title) {
   const copy = svg.cloneNode(true);
   const originals = svg.querySelectorAll("*");
   const clones = copy.querySelectorAll("*");
+  // The crosshair and snapped dots follow the pointer; they aren't part of the chart.
+  const crosshairs = copy.querySelectorAll(".crosshair, .snap-hover");
   originals.forEach((element, index) => {
     const style = getComputedStyle(element);
     for (const property of ["fill", "stroke", "stroke-width", "font-family", "font-size", "font-weight"]) {
@@ -551,6 +867,7 @@ function chartImage(svg, title) {
       clones[index].removeAttribute(attribute);
     }
   });
+  crosshairs.forEach((layer) => layer.remove()); // After styling, which pairs elements by index.
   const image = svgElement("svg", {
     viewBox: "0 0 480 332", width: 960, height: 664, role: "img",
     "aria-labelledby": "image-title"
@@ -604,8 +921,8 @@ exportButtons.forEach((button) => {
     exportStatus.classList.remove("error");
     exportStatus.textContent = "Preparing image...";
     try {
-      const title = document.querySelector(`#${chart}-heading`).textContent;
-      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), title);
+      const heading = document.querySelector(`#${chart}-heading`).textContent;
+      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), chartTitleInput.value.trim() || heading);
       const blob = format === "svg" ? svgBlob : await rasterImage(svgBlob, format);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -616,7 +933,7 @@ exportButtons.forEach((button) => {
       link.remove();
       // Give the browser time to start the download before releasing the URL.
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      exportStatus.textContent = `Exported ${title.toLowerCase()} as ${format.toUpperCase()}.`;
+      exportStatus.textContent = `Exported ${heading.toLowerCase()} as ${format.toUpperCase()}.`;
     } catch (error) {
       exportStatus.classList.add("error");
       exportStatus.textContent = `Export failed: ${error.message}`;
@@ -627,4 +944,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV or XML file to get started.");
+showStatus("No data yet. Import a CSV, XML, JSON or Excel (.xlsx) file to get started.");

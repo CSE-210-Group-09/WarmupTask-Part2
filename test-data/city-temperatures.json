@@ -1,0 +1,16 @@
+[
+  {"day": 1, "cityA_temp": 14.2, "cityB_temp": 9.1},
+  {"day": 2, "cityA_temp": 15.0, "cityB_temp": 9.8},
+  {"day": 3, "cityA_temp": 13.8, "cityB_temp": 10.4},
+  {"day": 4, "cityA_temp": 16.1, "cityB_temp": 11.0},
+  {"day": 5, "cityA_temp": 17.4, "cityB_temp": 10.2},
+  {"day": 6, "cityA_temp": 18.0, "cityB_temp": 12.5},
+  {"day": 7, "cityA_temp": 16.9, "cityB_temp": 13.1},
+  {"day": 8, "cityA_temp": 19.2, "cityB_temp": 12.8},
+  {"day": 9, "cityA_temp": 20.5, "cityB_temp": 14.0},
+  {"day": 10, "cityA_temp": 21.1, "cityB_temp": 15.2},
+  {"day": 11, "cityA_temp": 19.8, "cityB_temp": 14.6},
+  {"day": 12, "cityA_temp": 22.4, "cityB_temp": 16.0},
+  {"day": 13, "cityA_temp": 23.0, "cityB_temp": 17.3},
+  {"day": 14, "cityA_temp": 21.7, "cityB_temp": 16.8}
+]

@@ -4,10 +4,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const {
-  parseCSVTable, tableFromRecords, reconcileSelection, seriesFor, assignColors, SERIES_COLORS
+  parseCSVTable, parseJSONTable, tableFromRecords, reconcileSelection, seriesFor, assignColors, SERIES_COLORS
 } = vm.runInNewContext(
   fs.readFileSync(path.join(__dirname, "../data.js"), "utf8") +
-  "; ({ parseCSVTable, tableFromRecords, reconcileSelection, seriesFor, assignColors, SERIES_COLORS });"
+  "; ({ parseCSVTable, parseJSONTable, tableFromRecords, reconcileSelection, seriesFor, assignColors, SERIES_COLORS });"
 );
 // Values from the vm sandbox have a different Array/Object prototype; normalize them.
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -91,4 +91,65 @@ test("colors: chosen colors stick, others follow the palette by position", () =>
   const many = Array.from({ length: SERIES_COLORS.length + 2 }, (_, i) => `c${i}`);
   const colors = plain(assignColors(many, {}));
   assert.equal(colors[`c${SERIES_COLORS.length}`], SERIES_COLORS[0]);
+});
+
+test("CSV rejects non-decimal and non-finite cells rather than coercing them", () => {
+  for (const value of ["NaN", "Infinity", "-Infinity", "1e309", "0x10", "0b10", "2px", " "]) {
+    assert.throws(() => parseCSVTable(`x,y\n1,${value}`), /Row 2 must contain exactly 2 valid numbers/);
+  }
+});
+
+test("CSV accepts signed decimals and scientific notation across line endings", () => {
+  for (const newline of ["\n", "\r\n", "\r"]) {
+    const input = ["x,y", "+.5,-2.", "", "1e-3,+2E2"].join(newline);
+    assert.deepEqual(plain(parseCSVTable(input)).rows, [[0.5, -2], [0.001, 200]]);
+  }
+});
+
+test("XML rejects duplicate first-point fields and numeric overflow", () => {
+  for (const fields of [
+    [["x", "1"], ["y", "2"], ["y", "3"]],
+    [["x", "1"], ["y", "1e309"]]
+  ]) {
+    assert.throws(() => tableFromRecords([fields]), /Point 1 must contain exactly one valid number/);
+  }
+});
+
+test("changing plotted X preserves source rows and duplicate-X measurements", () => {
+  const table = parseCSVTable("time,value\n3,2\n1,2\n2,1");
+  const before = plain(table);
+  const lines = plain(seriesFor(table, { x: "value", ys: ["time"] }));
+  assert.deepEqual(lines[0].points, [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 1 }]);
+  assert.deepEqual(plain(table), before);
+});
+
+test("JSON arrays of objects become tables, columns in the first object's order", () => {
+  assert.deepEqual(plain(parseJSONTable('[{"x": 1, "y": 3}, {"y": 5, "x": 2}]')), { columns: ["x", "y"], rows: [[1, 3], [2, 5]] });
+  assert.deepEqual(plain(parseJSONTable('[{"t": -2.5e-2, "a": 0, "b": 1e3}]')), { columns: ["t", "a", "b"], rows: [[-0.025, 0, 1000]] });
+});
+
+test("JSON values must be numbers: strings, booleans, null, arrays and overflow are rejected", () => {
+  for (const value of ['"3"', "true", "null", "[1]", '{"v": 1}', "1e400"]) {
+    assert.throws(() => parseJSONTable(`[{"x": 1, "y": 2}, {"x": 2, "y": ${value}}]`),
+      { message: "Item 2 must contain exactly one number for each of: x, y." });
+  }
+});
+
+test("JSON items with missing or extra fields are rejected", () => {
+  for (const item of ['{"x": 2}', '{"x": 2, "y": 3, "z": 4}', '{"x": 2, "z": 3}']) {
+    assert.throws(() => parseJSONTable(`[{"x": 1, "y": 2}, ${item}]`), /^Error: Item 2 must contain/);
+  }
+});
+
+test("invalid JSON and other shapes are rejected with a hint", () => {
+  assert.throws(() => parseJSONTable('[{"x": 1,'), { message: "The JSON is not valid." });
+  for (const text of ["{}", '{"x": [1, 2], "y": [3, 4]}', "[1, 2]", "[[1, 2]]", "null", '"x,y"', '[{"x": 1, "y": 2}, 3]']) {
+    assert.throws(() => parseJSONTable(text), /^Error: The JSON must be an array of objects, such as/);
+  }
+  assert.throws(() => parseJSONTable("[]"), { message: "The JSON contains no data points." });
+});
+
+test("JSON column names follow the CSV rules", () => {
+  assert.throws(() => parseJSONTable('[{"x": 1}]'), { message: "The JSON needs at least two columns." });
+  assert.throws(() => parseJSONTable('[{"": 1, "y": 2}]'), { message: "Every JSON column needs a name." });
 });
