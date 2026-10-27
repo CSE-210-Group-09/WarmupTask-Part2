@@ -11,7 +11,7 @@ npm run test:e2e                  # Playwright, serves the site with e2e/server.
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`, `hover.js`) that the page loads with `<script>` tags. The tests load each file into a Node `vm` sandbox, as `tests/scale.test.cjs` already did, so no module system or bundler is needed. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 ## Browser tests (`e2e/`)
 
@@ -25,7 +25,7 @@ One file per user story, each test named after the behaviour it checks:
 | `import-recovery.spec.js` | Failed imports preserve configured plots; corrected files can be re-imported |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
-| `compare-points.spec.js` | I want to compare data points across both charts (#23); shared crosshair (#24) |
+| `compare-points.spec.js` | I want to compare data points across both charts (#23); shared crosshair (#24), snapping (#25) |
 
 Tests drive the page like a user: importing through the real file input, the mouse wheel with Ctrl held, dragging, and clicking. They assert what the user sees (markers, tick labels, the status line) and exported files.
 

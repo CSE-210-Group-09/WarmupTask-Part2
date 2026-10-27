@@ -60,6 +60,9 @@ svg .axis-label { font-weight: 600; }
 .crosshair-line { stroke: #647184; stroke-width: 1; stroke-dasharray: 4 3; }
 .crosshair-readout rect { fill: #202b3c; }
 svg .crosshair-readout text { fill: white; font-size: 11px; text-anchor: middle; }
+/* Dots on the snapped points of a line graph without markers (#25). */
+.snap-hover { pointer-events: none; }
+.snap-dot { stroke: white; stroke-width: 1.5; }
 #point-tooltip {
   position: fixed;
   z-index: 10;

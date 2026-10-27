@@ -1,6 +1,8 @@
 // Story (#23): As a user, I want to compare data points across both charts.
 //   #24: a crosshair follows the pointer on either chart and is drawn at the
 //   same values on the other one, with those values read off both axes.
+//   #25: with the line graph's markers hidden, hovering it snaps to the data
+//   point nearest by X: a dot marks it and the tooltip shows its values.
 const { test, expect } = require("@playwright/test");
 const { PLOT, importFile, plotPoint, markers } = require("./helpers.cjs");
 const fs = require("node:fs");
@@ -92,14 +94,19 @@ test("points under the crosshair still show their tooltip", async ({ page }) => 
   await expect(crosshair(page, "scatter")).toBeVisible();
 });
 
-test("the crosshair still works with the line graph's markers hidden", async ({ page }) => {
+test("with the line graph's markers hidden, its crosshair snaps and the scatter plot's doesn't", async ({ page }) => {
   await page.locator("#show-line-points").uncheck();
   await expect(markers(page, "line")).toHaveCount(0);
-  await hover(page, "line", 0.75, 0.25);
+  // The line graph snaps to the nearest point by X (#25): (75, 150).
+  await hover(page, "line", 0.72, 0.25);
   await expect(crosshair(page, "line")).toBeVisible();
   await expect(crosshair(page, "scatter")).toBeVisible();
-  near(await readNumber(readout(page, "line", "x")), 75, 1);
-  near(await readNumber(readout(page, "line", "y")), 50, 2);
+  await expect(readout(page, "line", "x")).toHaveText("75");
+  await expect(readout(page, "line", "y")).toHaveText("150");
+  // The scatter plot keeps its markers, so its crosshair follows the pointer.
+  await hover(page, "scatter", 0.72, 0.25);
+  near(await readNumber(readout(page, "scatter", "x")), 72, 1);
+  near(await readNumber(readout(page, "scatter", "y")), 50, 2);
 });
 
 test("zooming with the wheel keeps the crosshair, and the values under it, at the pointer", async ({ page }) => {
@@ -180,4 +187,126 @@ test("exported images leave out the crosshair", async ({ page }) => {
   expect((svg.match(/<line/g) ?? []).length).toBe(5);
   expect((svg.match(/<rect/g) ?? []).length).toBe(2);
   await expect(crosshair(page, "line")).toBeVisible(); // The page keeps it.
+});
+
+// #25: snapping to the nearest point by X when the line graph hides its markers.
+const tooltip = (page) => page.locator("#point-tooltip");
+const snapDots = (page) => page.locator("#line-chart .snap-dot");
+
+test.describe("with the line graph's markers hidden", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.locator("#show-line-points").uncheck();
+    await expect(markers(page, "line")).toHaveCount(0);
+  });
+
+  test("hovering snaps to the nearest point by X, with its tooltip and a dot in the line's color", async ({ page }) => {
+    // Nearest by X is x = 50 (at 0.5), however far the pointer is from it vertically.
+    await hover(page, "line", 0.45, 0.95);
+    await expect(tooltip(page)).toBeVisible();
+    await expect(tooltip(page)).toHaveText("x: 50\ny: 120");
+    await expect(snapDots(page)).toHaveCount(1);
+    const dot = snapDots(page).first();
+    near(Number(await dot.getAttribute("cx")), svgX(0.5), 0.01);
+    near(Number(await dot.getAttribute("cy")), svgY(0.6), 0.01);
+    const color = await page.locator("#line-chart polyline.line").getAttribute("stroke");
+    await expect(dot).toHaveAttribute("fill", color);
+    // The crosshair snaps to the same point on both charts.
+    for (const chart of ["line", "scatter"]) {
+      near(await lineAttribute(page, chart, "vertical", "x1"), svgX(0.5), 0.01);
+      near(await lineAttribute(page, chart, "horizontal", "y1"), svgY(0.6), 0.01);
+      await expect(readout(page, chart, "x")).toHaveText("50");
+    }
+  });
+
+  test("moving along the plot follows the nearest X, and leaving it clears the dot and tooltip", async ({ page }) => {
+    await hover(page, "line", 0.45, 0.5);
+    await expect(tooltip(page)).toHaveText("x: 50\ny: 120");
+    await hover(page, "line", 0.3, 0.5);
+    await expect(tooltip(page)).toHaveText("x: 25\ny: 40");
+    near(Number(await snapDots(page).first().getAttribute("cx")), svgX(0.25), 0.01);
+    await hover(page, "line", 0.95, 0.1);
+    await expect(tooltip(page)).toHaveText("x: 100\ny: 200");
+
+    await page.locator("#line-heading").hover();
+    await expect(tooltip(page)).toBeHidden();
+    await expect(snapDots(page)).toHaveCount(0);
+  });
+
+  test("with several lines, the tooltip lists each line's value at that X and each line gets a dot", async ({ page }) => {
+    await importFile(page, "city-temperatures.csv", fs.readFileSync("test-data/city-temperatures.csv", "utf8"));
+    await expect(page.locator("#line-chart polyline.line")).toHaveCount(2);
+    // Days run 1 to 14; aim a little right of day 5.
+    await hover(page, "line", (5.3 - 1) / 13, 0.5);
+    await expect(tooltip(page)).toHaveText("day: 5\ncityA_temp: 17.4\ncityB_temp: 10.2");
+    await expect(snapDots(page)).toHaveCount(2);
+    const lineColors = await page.locator("#line-chart polyline.line").evaluateAll((lines) => lines.map((l) => l.getAttribute("stroke")));
+    const dotColors = await snapDots(page).evaluateAll((dots) => dots.map((d) => d.getAttribute("fill")));
+    expect(dotColors).toEqual(lineColors);
+    const xs = await snapDots(page).evaluateAll((dots) => dots.map((d) => Number(d.getAttribute("cx"))));
+    expect(xs[0]).toBe(xs[1]);
+  });
+
+  test("zoomed in, it only snaps to points in view", async ({ page }) => {
+    // x = 36 is just left of the 4x view (x = 37.5 to 62.5) and closer to the
+    // pointer than x = 50, the only point in view.
+    await importFile(page, "edge.csv", "x,y\n0,0\n36,72\n50,100\n100,200");
+    await page.locator("#zoom-in").click();
+    await page.locator("#zoom-in").click();
+    await expect(page.locator("#zoom-status")).toContainText("Zoomed 4x");
+    await hover(page, "line", 0.05, 0.5);
+    await expect(tooltip(page)).toHaveText("x: 50\ny: 100");
+    near(Number(await snapDots(page).first().getAttribute("cx")), svgX(0.5), 0.01);
+  });
+
+  test("a value above or below the view is listed without a dot", async ({ page }) => {
+    await page.locator("#zoom-in").click();
+    await expect(page.locator("#zoom-status")).toContainText("Zoomed 2x");
+    // The view spans x = 25 to 75 and y = 50 to 150, so (25, 40) is below it.
+    await hover(page, "line", 0.1, 0.5);
+    await expect(tooltip(page)).toHaveText("x: 25\ny: 40");
+    await expect(snapDots(page)).toHaveCount(0);
+    await hover(page, "line", 0.55, 0.5);
+    await expect(tooltip(page)).toHaveText("x: 50\ny: 120");
+    near(Number(await snapDots(page).first().getAttribute("cx")), svgX(0.5), 0.01);
+  });
+
+  test("dragging to pan clears the dot and tooltip until the pointer moves again", async ({ page }) => {
+    await page.locator("#zoom-in").click();
+    await expect(page.locator("#zoom-status")).toContainText("Zoomed 2x");
+    await hover(page, "line", 0.5, 0.5);
+    await expect(snapDots(page)).toHaveCount(1);
+    await page.mouse.down();
+    await expect(tooltip(page)).toBeHidden();
+    await expect(snapDots(page)).toHaveCount(0);
+    const to = await plotPoint(page, "line", 0.7, 0.5);
+    await page.mouse.move(to.x, to.y, { steps: 5 });
+    await expect(snapDots(page)).toHaveCount(0);
+    await page.mouse.up();
+    await page.mouse.move(to.x + 5, to.y);
+    await expect(snapDots(page)).toHaveCount(1);
+    await expect(tooltip(page)).toBeVisible();
+  });
+
+  test("exported images leave out the snapped dot", async ({ page }) => {
+    await page.locator("#line-format").selectOption("svg");
+    await hover(page, "line", 0.5, 0.5);
+    await expect(snapDots(page)).toHaveCount(1);
+    // Export from the keyboard so the pointer stays on the chart.
+    await page.locator('.export-button[data-chart="line"]').focus();
+    const download = page.waitForEvent("download");
+    await page.keyboard.press("Enter");
+    const svg = fs.readFileSync(await (await download).path(), "utf8");
+    expect(svg).not.toContain("<circle");
+    await expect(snapDots(page)).toHaveCount(1);
+  });
+});
+
+test("with markers shown, the line graph doesn't snap", async ({ page }) => {
+  await hover(page, "line", 0.45, 0.95); // Away from every marker.
+  await expect(tooltip(page)).toBeHidden();
+  await expect(snapDots(page)).toHaveCount(0);
+  near(await lineAttribute(page, "line", "vertical", "x1"), svgX(0.45), 2);
+  // Hovering a marker still shows its own tooltip.
+  await markers(page, "line").nth(2).hover();
+  await expect(tooltip(page)).toHaveText("x: 50\ny: 120");
 });

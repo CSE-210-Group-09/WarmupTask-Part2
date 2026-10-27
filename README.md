@@ -20,6 +20,7 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 - Hover or focus a point to see its original values.
 - Move the pointer over either chart to show a crosshair on both charts at the same X and Y values, with those values read off each axis. Focusing a point with the keyboard puts the crosshair through it. The crosshair hides when the pointer leaves the plot, while dragging to pan, and when the page scrolls, and it is never part of exported images. See [design §6.6](docs/design.md#66-shared-crosshair-issue-24).
 - Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
+- With the line graph's points hidden, hovering it snaps to the data point nearest by X: a small dot in each line's color marks that X and the tooltip lists every line's value there. The crosshair snaps to the same point. With points shown, hovering works as before. See [design §6.7](docs/design.md#67-snapping-to-the-nearest-point-issue-25).
 - Under **Columns to plot**, pick the **X-axis column** and check the columns to draw as lines. Each line has its own color picker; colors persist across imports and scale changes and apply to exports. With two or more lines, both charts show a legend. By default, a column named `x` (else the first column) is X and every other column is a line. See [design §6.5](docs/design.md#65-picking-columns-pr-6-issue-4).
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
@@ -36,6 +37,7 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 - `style.css`: layout and chart appearance.
 - `scale.js`: numeric scaling and tick formatting.
 - `view.js`: zoom and pan state.
+- `hover.js`: finding the point nearest the pointer.
 - `data.js`: parsing files into a table of columns, column selection, and line colors.
 - `app.js`: CSV and XML input, chart interactions, and image export.
 - `sample.csv`, `sample.xml`: the same example dataset in each format.
