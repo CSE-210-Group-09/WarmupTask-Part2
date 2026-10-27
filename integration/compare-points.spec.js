@@ -4,7 +4,7 @@
 //   #25: with the line graph's markers hidden, hovering it snaps to the data
 //   point nearest by X: a dot marks it and the tooltip shows its values.
 const { test, expect } = require("@playwright/test");
-const { PLOT, importFile, plotPoint, markers } = require("./helpers.cjs");
+const { PLOT, importFile, plotPoint, markers } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 // x runs 0..100 and y 0..200, so plot fractions convert to values by hand.
@@ -20,8 +20,13 @@ const svgY = (fy) => PLOT.bottom - fy * (PLOT.bottom - PLOT.top);
 const near = (actual, expected, tolerance) =>
   expect(Math.abs(actual - expected), `${actual} is not within ${tolerance} of ${expected}`).toBeLessThanOrEqual(tolerance);
 
+// Clicking a control (such as zoom in, above the minimap) can scroll the page,
+// and the scroll event hides the crosshair. Let it pass before hovering.
+const settle = (page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+
 async function hover(page, chart, fx, fy) {
   const target = await plotPoint(page, chart, fx, fy);
+  await settle(page);
   await page.mouse.move(target.x, target.y);
 }
 

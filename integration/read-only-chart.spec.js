@@ -1,6 +1,6 @@
 // Story: As a user, I don't want to be able to modify the chart after creating it.
 const { test, expect } = require("@playwright/test");
-const { importFile, markers } = require("./helpers.cjs");
+const { importFile, markers } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 test.beforeEach(async ({ page }) => {
