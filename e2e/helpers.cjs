@@ -3,17 +3,24 @@
 // Plot area inside the 480 x 300 chart viewBox (PLOT in app.js).
 const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
 
-// Import a file through the real file input, then wait for the status line to
-// report success or an error. It is cleared first so an old message can't match.
-async function importFile(page, name, text) {
+const mimeTypes = {
+  xml: "application/xml",
+  json: "application/json",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+};
+
+// Import a file (text, or a Buffer for binary files) through the real file input,
+// then wait for the status line to report success or an error. It is cleared
+// first so an old message can't match.
+async function importFile(page, name, content) {
   await page.locator("#status").evaluate((status) => {
     status.textContent = "";
     status.classList.remove("error");
   });
   await page.setInputFiles("#data-file", {
     name,
-    mimeType: name.endsWith(".xml") ? "application/xml" : "text/csv",
-    buffer: Buffer.from(text)
+    mimeType: mimeTypes[name.split(".").pop()] ?? "text/csv",
+    buffer: Buffer.isBuffer(content) ? content : Buffer.from(content)
   });
   await page.waitForFunction((file) => {
     const status = document.querySelector("#status");

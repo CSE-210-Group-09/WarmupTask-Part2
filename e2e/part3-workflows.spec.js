@@ -17,7 +17,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("open a spreadsheet, zoom out past it, and find the view on the minimap", async ({ page }) => {
-  test.fail(true, "Needs #31 (file import) and #20 (zoom navigation) on main");
   await importFile(page, "city-temperatures.xlsx", fs.readFileSync("test-data/city-temperatures.xlsx"));
   await expect(page.locator("#status")).toHaveText(/^Imported city-temperatures\.xlsx\. Points: 14\./);
   await expect(page.locator("#zoom-out")).toBeEnabled();
@@ -33,6 +32,9 @@ test("import JSON, then title, size, place the legend and export the scatter plo
   test.fail(true, "Needs #31 (file import) and #26 (appearance) on main");
   await importFile(page, "city-temperatures.json", fs.readFileSync("test-data/city-temperatures.json", "utf8"));
   await expect(page.locator("#status")).toHaveText(/^Imported city-temperatures\.json\. Points: 14\./);
+  // Fail fast rather than time out: Playwright reports a timeout as a real
+  // failure even under test.fail.
+  await expect(page.locator("#chart-title")).toBeVisible();
   await page.locator("#chart-title").fill("Spring temperatures");
   await page.locator("#point-size").fill("10");
   await page.locator("#legend-position").selectOption("bottom-right");

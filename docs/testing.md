@@ -30,11 +30,13 @@ Each story has a staging branch, `story/<slug>`, and each task a scratch branch 
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load them into a Node `vm` sandbox, so no module system or bundler is needed. `tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name or script that doesn't exist yet comes back `undefined`, so a test written before its code fails on its own rather than breaking the whole file. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `xlsx.js`, `scale.js`, `view.js`) that the page loads with `<script>` tags. The tests load them into a Node `vm` sandbox, so no module system or bundler is needed. `tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name or script that doesn't exist yet comes back `undefined`, so a test written before its code fails on its own rather than breaking the whole file. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 `plot-pipeline.test.cjs` follows a CSV through parsing, column selection, axes and the zoomed view to chart positions and tick labels.
 
 `zoom-navigation.test.cjs` covers zooming out and panning past the data and the minimap's frame.
+
+`file-import.test.cjs` checks that the JSON and `.xlsx` fixtures give the same tables and lines as their CSV files. `tests/zip.cjs` builds `.xlsx` workbooks in memory for tests.
 
 ## Integration tests (`integration/`)
 
@@ -49,6 +51,7 @@ One Playwright file per user story, each test named after the behaviour it check
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
 | `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data |
+| `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files |
 
 ## End-to-end tests (`e2e/`)
 

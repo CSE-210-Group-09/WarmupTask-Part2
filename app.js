@@ -73,11 +73,17 @@ function parseXML(text) {
 }
 
 // Choose a parser by file extension, falling back to content for unnamed types.
-function parseFile(name, text) {
-  const extension = name.toLowerCase().split(".").pop();
+// Files are read locally, without uploading them.
+async function parseFile(file) {
+  const extension = file.name.toLowerCase().split(".").pop();
+  if (extension === "xlsx") return parseXLSX(new Uint8Array(await file.arrayBuffer()));
+  const text = await file.text();
   if (extension === "xml") return parseXML(text);
+  if (extension === "json") return parseJSONTable(text);
   if (extension === "csv") return parseCSVTable(text);
-  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSVTable(text);
+  const start = text.trimStart()[0];
+  if (start === "<") return parseXML(text);
+  return start === "[" || start === "{" ? parseJSONTable(text) : parseCSVTable(text);
 }
 
 // Rebuild the plotted series after the data, the selection or a color changes.
@@ -145,8 +151,7 @@ fileInput.addEventListener("change", async () => {
   if (!file) return;
   importButton.disabled = true;
   try {
-    const text = await file.text(); // Read the local file without uploading it.
-    table = parseFile(file.name, text); // Replace data only after every point is valid.
+    table = await parseFile(file); // Replace data only after every point is valid.
     // Keep the chosen columns when re-importing a file with the same columns.
     selection = reconcileSelection(table.columns, selection);
     view = fullView();
@@ -244,7 +249,7 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
+  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a data file to change the axis scales.";
 }
 
 // One axis per direction across every plotted line, shared by both charts and the minimap.
@@ -259,7 +264,7 @@ const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (!hasData()) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file to see the chart"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a data file to see the chart"));
     return;
   }
 
@@ -649,4 +654,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV or XML file to get started.");
+showStatus("No data yet. Import a CSV, XML, JSON or Excel (.xlsx) file to get started.");
