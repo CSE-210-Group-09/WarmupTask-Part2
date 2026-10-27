@@ -14,6 +14,7 @@ Who decided what:
 | PR #5 | Zoom, pan and reset zoom; browser tests for every user story |
 | PR #6 | Plotting multiple columns |
 | Part 3, issue #20 | Zooming out and panning past the data, minimap |
+| Part 3, issue #26 | Hover color, point size, chart title, legend position |
 | Part 3, issue #31 | JSON and spreadsheet import |
 
 ## Contents
@@ -52,6 +53,7 @@ The user stories it serves:
 | `style.css` | Layout and chart styling |
 | `scale.js` | Maps values to positions on an axis and formats tick labels. No DOM access. |
 | `view.js` | Zoom and pan state. No DOM access. |
+| `layout.js` | Where the legend goes in the plot. No DOM access. |
 | `data.js` | Parses files into a table of columns, chooses columns, assigns colors. No DOM access. |
 | `xlsx.js` | Reads `.xlsx` workbooks (unzipping and XML reading) into the same table. No DOM access. |
 | `app.js` | Everything that touches the page: file input, XML reading, drawing, interaction, export |
@@ -285,6 +287,7 @@ PR #3 added one "Data color" picker for the single series; its own description n
 
 - **Default colors:** the original blue (`#245bc5`) first, then the Okabe-Ito palette, which stays distinguishable for the common types of color blindness. The rule is simply "the color you chose, otherwise the palette color for the column's position". It can repeat a color you picked for another line; we accepted that to keep the rule simple.
 - **Persistence:** chosen colors are remembered by column name across imports, and exports use them.
+- **Hover and focus (issue #27):** a hovered or focused point keeps its line's color and gets a dark ring (`#202b3c`, 3 units wide). Team 10 turned every hovered point orange-red, which ignored the color you chose and could match another line. A dark ring shows against every palette color, including yellow. **Considered:** a bigger radius, which can't be set from CSS in every browser and shifts neighbouring points' hit areas, or a lighter shade of the line's color, which needs a color per line in the stylesheet.
 - **Considered:** shades of one color, which are hard to tell apart beyond two lines, or a palette menu, which offers less control.
 
 ### 7.3 Legend inside the chart (PR #6)
@@ -293,6 +296,31 @@ With two or more lines, a legend in the plot's top-right corner names each color
 
 - **Why inside the SVG:** exports include it with no extra code.
 - **Considered:** an HTML legend beside the chart, which would be missing from exports, or a bigger top margin to hold it, which shifts the plot area that zoom, pan and the tests rely on. Zooming or panning moves data out from under the legend.
+
+**Moving it off the data (issue #30).** A **Legend position** menu under the line pickers offers Auto (the default) or one of the four corners. The choice applies to both charts and to exports, and it stays when you import new data.
+- **Auto** picks the corner whose legend box covers the fewest points in view (`emptiestCorner` in `layout.js`). A point within a marker's radius of the box counts as covered. Ties go top right, top left, bottom right, bottom left, so data that leaves every corner clear keeps the part 2 position.
+- Both charts count the same points, every point in view whether or not its marker is drawn, so their legends always agree. Auto runs on every redraw, so zooming or panning can move the legend.
+- **Considered:**
+  - Dragging the legend: free placement, but a mouse-only control with more code, and it needs a position stored per chart.
+  - Only fixed corners: simple, but the user has to find the empty corner themselves.
+  - Counting line segments as well as points: more maths for a small gain, since lines run between points.
+- **Limit:** Auto counts points, not line segments, so a steep line between two distant points can still pass under the legend. Pick a corner by hand then.
+
+### 7.4 Scatter point size (issue #28)
+
+A **Point size** slider above the scatter plot sets the radius of its points, from 2 to 12 (default 6, the old fixed size), and shows the current value. Exports use it, and it survives imports.
+
+- **Scatter plot only:** there the points are the whole chart, so their size is a real choice: small for dense clouds, large for a few points on a slide. On the line graph the markers sit on the line, and they can be hidden (6.3).
+- **Why a slider:** it's a native `input type="range"`, so it already works with the keyboard and screen readers, and its `<output>` shows the number.
+- **Considered:** one size for both charts, which makes line markers cover the line at large sizes, or a number field, which is slower for trying sizes out.
+
+### 7.5 Chart title (issue #29)
+
+A **Chart title** field, beside the axis labels, sets one title for both charts. It shows above them and names exported images: it becomes the heading drawn at the top of the image and the SVG's `<title>`. A blank title hides it, and exports go back to "Line graph" or "Scatter plot", as before.
+
+- **One title for both charts:** they are two views of one dataset (6.1), like the shared labels and colors.
+- **Drawn by the existing export code:** export already drew a heading above the chart (8), so the title replaces that text and the plot area is unchanged.
+- **Considered:** drawing the title inside each chart's SVG, which would take space from the plot area that zoom, pan and the tests rely on; or a title per chart, which is twice the typing for the usual case.
 
 ## 8. Image export (Team 10; output follows later features)
 
@@ -315,6 +343,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 **Unit tests** (`tests/*.test.cjs`, Node only) cover the pure logic:
 - `scale.js`: Team 10's extreme-value tests, plus tick labels when zoomed.
 - `view.js`: the zoom anchor stays put, clamping, limits, conversions.
+- `layout.js`: legend boxes in each corner, the emptiest corner and its tie order.
 - `data.js`: CSV, XML and JSON tables, every validation error, selections, colors.
 - `xlsx.js`: the zip reader, the XML reader, cell types and references, the table rules, finding the first sheet.
 
@@ -331,6 +360,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
 | `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data (issue #20) |
 | `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files (issue #31) |
+| `appearance-settings.spec.js` | I want the chart to look the way I set it up (issue #26) |
 
 **End-to-end tests** (`e2e/*.spec.js`, Playwright) follow whole workflows across several stories, from import to export. Part 3's workflows were written before its stories and are marked as expected to fail until the stories they need reach `main`.
 

@@ -47,6 +47,27 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - New `xlsx.js` with no dependencies: a zip reader using the browser's `DecompressionStream`, a small XML reader, and the CSV rules from `data.js`. `app.js` reads `.xlsx` files as bytes. Added `sample.xlsx` and `.xlsx` versions of the test data, written by openpyxl.
 - Validation: unit tests written first (10 in `tests/xlsx.test.cjs`), then the code. 41 unit, 9 integration and 72 browser tests (Chromium and Firefox) pass, and the import specs passed 5 repeated runs.
 
+### Legend position (issue #30)
+
+- A **Legend position** menu: Auto (the corner covering the fewest points in view, the default) or one of the four corners, applied to both charts and to exports.
+- New `layout.js`: `legendBox` and `emptiestCorner`. `app.js` passes each chart's point positions to `drawLegend`.
+- Validation: unit tests written first (4 in `tests/layout.test.cjs`), then the code. 30 unit, 7 integration and 68 browser tests (Chromium and Firefox) pass, and the appearance specs passed 5 repeated runs.
+
+### Chart title (issue #29)
+
+- A **Chart title** field sets a title shown above both charts and used as the heading and `<title>` of exported images. Blank keeps the old "Line graph" and "Scatter plot" headings.
+- Validation: no unit layer (markup and export wiring only). The story's end-to-end title test failed before and passes after, in Chromium and Firefox.
+
+### Scatter point size (issue #28)
+
+- A **Point size** slider above the scatter plot sets its point radius (2 to 12, default 6). Exports keep it, and it survives imports. The line graph's markers are unchanged.
+- Validation: no unit layer (markup and drawing only). The story's end-to-end slider test failed before and passes after, in Chromium and Firefox.
+
+### Hover keeps the line's color (issue #27)
+
+- A hovered or focused point now keeps its line's color, with a dark ring, instead of turning orange-red. `style.css` only.
+- Validation: no unit layer (no logic outside CSS). The story's end-to-end hover test failed before and passes after, in Chromium and Firefox.
+
 ### Three test layers (team meeting, Oct 23)
 
 - **Unit** (`tests/*.test.cjs`, Node): internal logic. `tests/load.cjs` loads several scripts into one sandbox; `plot-pipeline.test.cjs` follows a CSV to chart positions and tick labels (3 new tests).

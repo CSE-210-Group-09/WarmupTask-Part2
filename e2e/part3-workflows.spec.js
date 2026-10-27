@@ -1,9 +1,4 @@
-// End-to-end workflows for the part 3 stories, written before the stories:
-//   #20 zoom navigation, #26 appearance settings, #31 JSON and spreadsheet import.
-// Each workflow needs two stories, so it is marked as expected to fail
-// (test.fail) and main stays green. When the second of its stories reaches
-// main, the workflow passes, Playwright reports that, and that story's PR
-// removes the marker.
+// End-to-end workflows crossing part 3 stories (#20, #26, #31).
 const { test, expect } = require("@playwright/test");
 const { importFile } = require("./helpers.cjs");
 const fs = require("node:fs");
@@ -29,7 +24,6 @@ test("open a spreadsheet, zoom out past it, and find the view on the minimap", a
 });
 
 test("import JSON, then title, size, place the legend and export the scatter plot", async ({ page }) => {
-  test.fail(true, "Needs #31 (file import) and #26 (appearance) on main");
   await importFile(page, "city-temperatures.json", fs.readFileSync("test-data/city-temperatures.json", "utf8"));
   await expect(page.locator("#status")).toHaveText(/^Imported city-temperatures\.json\. Points: 14\./);
   // Fail fast rather than time out: Playwright reports a timeout as a real
@@ -49,7 +43,6 @@ test("import JSON, then title, size, place the legend and export the scatter plo
 });
 
 test("zoomed out, the legend and hover follow the chart's settings", async ({ page }) => {
-  test.fail(true, "Needs #20 (zoom navigation) and #26 (appearance) on main");
   await importFile(page, "city-temperatures.csv", fs.readFileSync("test-data/city-temperatures.csv", "utf8"));
   await expect(page.locator("#zoom-out")).toBeEnabled();
   await page.locator("#zoom-out").click();

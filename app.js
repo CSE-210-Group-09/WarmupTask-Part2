@@ -34,10 +34,30 @@ const zoomStatus = document.querySelector("#zoom-status");
 let view = fullView();
 
 const showLinePoints = document.querySelector("#show-line-points");
+const pointSize = document.querySelector("#point-size");
+const legendPosition = document.querySelector("#legend-position");
+legendPosition.addEventListener("change", render);
+const chartTitleInput = document.querySelector("#chart-title");
+const chartTitleText = document.querySelector("#chart-title-text");
 
 showLinePoints.addEventListener("change", () => {
   hideTooltip();
   drawChart(document.querySelector("#line-chart"), true);
+  exportStatus.textContent = "";
+});
+
+// Scatter point radius; the line graph's markers keep theirs, since they sit on the line.
+pointSize.addEventListener("input", () => {
+  document.querySelector("#point-size-value").textContent = pointSize.value;
+  hideTooltip();
+  drawChart(document.querySelector("#scatter-chart"), false);
+  exportStatus.textContent = "";
+});
+
+// A typed title shows above both charts and names exported images; blank hides it.
+chartTitleInput.addEventListener("input", () => {
+  chartTitleText.textContent = chartTitleInput.value.trim();
+  chartTitleText.hidden = !chartTitleText.textContent;
   exportStatus.textContent = "";
 });
 
@@ -328,19 +348,22 @@ function drawChart(svg, connectPoints) {
   // leaves fewer, separated markers (and fewer stops for keyboard focus).
   const inside = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
   if (!connectPoints || showLinePoints.checked) {
-    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside);
+    const radius = connectPoints ? 6 : Number(pointSize.value);
+    for (const line of series) drawMarkers(svg, line, scaleX, scaleY, inside, radius);
   }
-  drawLegend(svg);
+  // Every point in view counts for the legend's corner, drawn as a marker or not,
+  // so both charts agree.
+  drawLegend(svg, series.flatMap((line) => line.points.map((point) => ({ x: scaleX(point.x), y: scaleY(point.y) }))));
 }
 
-function drawMarkers(svg, line, scaleX, scaleY, inside) {
+function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
   const { left, right, top, bottom } = PLOT;
   line.points.forEach((point) => {
     if (!inside(scaleX(point.x), left, right) || !inside(scaleY(point.y), top, bottom)) return;
     // Name the columns, so values from different lines can be told apart.
     const label = `${selection.x}: ${point.x}, ${line.name}: ${point.y}`;
     const circle = svgElement("circle", {
-      cx: scaleX(point.x), cy: scaleY(point.y), r: 6, class: "point", fill: line.color,
+      cx: scaleX(point.x), cy: scaleY(point.y), r: radius, class: "point", fill: line.color,
       tabindex: 0, role: "img", "aria-label": label
     });
     // Still focusable so keyboard users can read the values.
@@ -357,9 +380,10 @@ function drawMarkers(svg, line, scaleX, scaleY, inside) {
   });
 }
 
-// With two or more lines, a legend in the plot's top-right corner names each
-// color. It is part of the SVG, so exported images include it.
-function drawLegend(svg) {
+// With two or more lines, a legend in a corner of the plot names each color:
+// the chosen corner, or on Auto the one covering the fewest `points` (layout.js).
+// It is part of the SVG, so exported images include it.
+function drawLegend(svg, points) {
   if (series.length < 2) return;
   const legend = svgElement("g", { class: "legend" });
   const box = svgElement("rect", { class: "legend-box", x: -8, y: 0, rx: 4, height: 8 + series.length * 16 });
@@ -373,9 +397,12 @@ function drawLegend(svg) {
   });
   svg.append(legend);
   // Size the box to the longest name once the text can be measured.
-  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width));
-  box.setAttribute("width", width + 16);
-  legend.setAttribute("transform", `translate(${PLOT.right - width - 14} ${PLOT.top + 6})`);
+  const width = 22 + Math.max(...[...legend.querySelectorAll("text")].map((text) => text.getBBox().width)) + 16;
+  const height = 8 + series.length * 16;
+  box.setAttribute("width", width);
+  const corner = legendPosition.value === "auto" ? emptiestCorner(points, PLOT, width, height) : legendPosition.value;
+  const at = legendBox(corner, PLOT, width, height);
+  legend.setAttribute("transform", `translate(${at.x + 8} ${at.y})`); // The box starts 8 left of the group.
 }
 
 // A constant axis has nothing to zoom into: its single value stays centered.
@@ -631,8 +658,8 @@ exportButtons.forEach((button) => {
     exportStatus.classList.remove("error");
     exportStatus.textContent = "Preparing image...";
     try {
-      const title = document.querySelector(`#${chart}-heading`).textContent;
-      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), title);
+      const heading = document.querySelector(`#${chart}-heading`).textContent;
+      const svgBlob = chartImage(document.querySelector(`#${chart}-chart`), chartTitleInput.value.trim() || heading);
       const blob = format === "svg" ? svgBlob : await rasterImage(svgBlob, format);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -643,7 +670,7 @@ exportButtons.forEach((button) => {
       link.remove();
       // Give the browser time to start the download before releasing the URL.
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      exportStatus.textContent = `Exported ${title.toLowerCase()} as ${format.toUpperCase()}.`;
+      exportStatus.textContent = `Exported ${heading.toLowerCase()} as ${format.toUpperCase()}.`;
     } catch (error) {
       exportStatus.classList.add("error");
       exportStatus.textContent = `Export failed: ${error.message}`;
