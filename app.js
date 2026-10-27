@@ -22,6 +22,7 @@ const scaleHelp = document.querySelector("#scale-help");
 const exportStatus = document.querySelector("#export-status");
 const exportButtons = document.querySelectorAll(".export-button");
 const columnControls = document.querySelector("#column-controls");
+const linesControls = document.querySelector("#lines-controls");
 const xColumnSelect = document.querySelector("#x-column");
 const yColumnList = document.querySelector("#y-columns");
 const zoomButtons = {
@@ -45,6 +46,73 @@ const charts = () => document.querySelectorAll(".charts svg");
 // `snap` holds the pointer's position (plot fractions) and the X value.
 let snap = null;
 const lineChart = document.querySelector("#line-chart");
+
+const metaCard = document.querySelector("#metadata-card");
+const metaBadge = document.querySelector("#meta-status-badge");
+const metaEmptyView = document.querySelector("#meta-empty-view");
+const metaActiveView = document.querySelector("#meta-active-view");
+const metaErrorView = document.querySelector("#meta-error-view");
+const metaErrorText = document.querySelector("#meta-error-text");
+const metaFilename = document.querySelector("#meta-filename");
+const metaPoints = document.querySelector("#meta-points");
+const metaColsCount = document.querySelector("#meta-cols-count");
+const metaColsList = document.querySelector("#meta-columns-list");
+let lastFileName = null;
+
+function updateMetadata(fileName, currentTable) {
+  if (!metaCard) return;
+  if (!currentTable) {
+    metaCard.className = "top-col metadata-card empty";
+    if (metaBadge) {
+      metaBadge.className = "status-badge inactive";
+      metaBadge.innerHTML = `<span class="status-dot"></span> <span>Inactive</span>`;
+    }
+    if (metaEmptyView) metaEmptyView.hidden = false;
+    if (metaActiveView) metaActiveView.hidden = true;
+    if (metaErrorView) metaErrorView.hidden = true;
+    return;
+  }
+  metaCard.className = "top-col metadata-card active";
+  if (metaBadge) {
+    metaBadge.className = "status-badge active";
+    metaBadge.innerHTML = `<span class="badge-icon">✓</span> <span>Active</span>`;
+  }
+  if (metaErrorView) metaErrorView.hidden = true;
+  if (metaEmptyView) metaEmptyView.hidden = true;
+  if (metaActiveView) metaActiveView.hidden = false;
+
+  if (metaFilename) metaFilename.textContent = fileName;
+  if (metaPoints) metaPoints.textContent = currentTable.rows.length;
+  if (metaColsCount) metaColsCount.textContent = currentTable.columns.length;
+
+  if (metaColsList) {
+    metaColsList.replaceChildren(...currentTable.columns.map((col) => {
+      const span = document.createElement("span");
+      span.className = "col-tag";
+      span.textContent = col;
+      return span;
+    }));
+  }
+}
+
+function showMetadataError(message) {
+  if (!metaCard) return;
+  if (metaBadge) {
+    metaBadge.className = "status-badge error";
+    metaBadge.innerHTML = `<span class="badge-icon">✕</span> <span>Error</span>`;
+  }
+  if (metaErrorText) metaErrorText.textContent = message;
+  if (metaErrorView) metaErrorView.hidden = false;
+  if (table && lastFileName) {
+    metaCard.className = "top-col metadata-card active has-error";
+    if (metaEmptyView) metaEmptyView.hidden = true;
+    if (metaActiveView) metaActiveView.hidden = false;
+  } else {
+    metaCard.className = "top-col metadata-card error";
+    if (metaEmptyView) metaEmptyView.hidden = true;
+    if (metaActiveView) metaActiveView.hidden = true;
+  }
+}
 
 const showLinePoints = document.querySelector("#show-line-points");
 const pointSize = document.querySelector("#point-size");
@@ -128,6 +196,7 @@ function updateSeries() {
 // The column picker: an X column and a checkbox and color per possible line.
 function buildColumnControls() {
   columnControls.hidden = !table;
+  if (linesControls) linesControls.hidden = !table;
   if (!table) return;
   xColumnSelect.replaceChildren(...table.columns.map((name) => new Option(name, name, false, name === selection.x)));
   yColumnList.replaceChildren(...table.columns.filter((name) => name !== selection.x).map((name) => {
@@ -185,6 +254,7 @@ fileInput.addEventListener("change", async () => {
   importButton.disabled = true;
   try {
     table = await parseFile(file); // Replace data only after every point is valid.
+    lastFileName = file.name;
     // Keep the chosen columns when re-importing a file with the same columns.
     selection = reconcileSelection(table.columns, selection);
     view = fullView();
@@ -193,8 +263,11 @@ fileInput.addEventListener("change", async () => {
     render();
     const columns = table.columns.length > 2 ? ` Columns: ${table.columns.join(", ")}.` : "";
     showStatus(`Imported ${file.name}. Points: ${table.rows.length}.${columns}`);
+    updateMetadata(file.name, table);
   } catch (error) {
-    showStatus(error instanceof DOMException ? "Unable to read this file." : error.message, true);
+    const message = error instanceof DOMException ? "Unable to read this file." : error.message;
+    showStatus(message, true);
+    showMetadataError(message);
   } finally {
     fileInput.value = ""; // Allow selecting the same file again.
     importButton.disabled = false;
