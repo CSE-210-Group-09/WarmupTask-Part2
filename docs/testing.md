@@ -34,6 +34,8 @@ Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`) that the pa
 
 `plot-pipeline.test.cjs` follows a CSV through parsing, column selection, axes and the zoomed view to chart positions and tick labels.
 
+`zoom-navigation.test.cjs` covers zooming out and panning past the data and the minimap's frame.
+
 ## Integration tests (`integration/`)
 
 One Playwright file per user story, each test named after the behaviour it checks:
@@ -46,6 +48,7 @@ One Playwright file per user story, each test named after the behaviour it check
 | `import-recovery.spec.js` | Failed imports preserve configured plots; corrected files can be re-imported |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data |
 
 ## End-to-end tests (`e2e/`)
 

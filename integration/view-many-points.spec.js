@@ -17,7 +17,8 @@ test("all 150 points are drawn and the view starts unzoomed", async ({ page }) =
   await expect(markers(page, "scatter")).toHaveCount(N);
   await expect(page.locator("#zoom-status")).toHaveText("Showing all points.");
   await expect(page.locator("#zoom-reset")).toBeDisabled();
-  await expect(page.locator("#zoom-out")).toBeDisabled();
+  // Zooming out past the data is allowed (zoom-navigation.spec.js).
+  await expect(page.locator("#zoom-out")).toBeEnabled();
   await expect(page.locator("#zoom-in")).toBeEnabled();
 });
 

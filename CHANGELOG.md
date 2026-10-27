@@ -22,6 +22,19 @@ Record meaningful changes under Unreleased in each PR. When preparing a release,
 - Three browser cases cover CSV/XML import rejection preserving chart settings and corrected same-name file recovery. Playwright runs these cases in Chromium, Firefox and WebKit.
 - Application runtime files are unchanged.
 
+### Minimap (issue #22)
+
+- A minimap below the zoom buttons shows all the data and a box for the view, with a caption giving the visible ranges. Drag the box to pan, click elsewhere to center the view there, or use the arrow keys when it has focus.
+- `view.js`: `overviewRange`, the minimap's frame (the data and the view together). `app.js`: `chartAxes`, shared by both charts and the minimap.
+- Fixed: in Chromium, a second drag on a chart could stop after one step, because the first drag had selected tick labels and the browser started dragging the selection. The charts and minimap are no longer text-selectable.
+- Validation: unit test written first, then the code. 32 unit, 10 integration and 80 browser tests (Chromium and Firefox) pass, and the zoom specs passed 5 repeated runs.
+
+### Zoom out and pan past the data (issue #21)
+
+- Zoom out now goes past the data, down to 0.1x, and dragging pans past the data's edges. Views stay inside a limit centered on the data. Reset zoom returns to the data's range and stays enabled whenever the view differs from it.
+- `view.js`: `MAX_SPAN`, a limit for `placeRange`, `isFullView` only for the data's own range, and `zoomLevel` reports the axis furthest from 1x. `scale.js`: positions and ticks continue past the data, log ticks add decades, and ticks stop at the largest finite numbers.
+- Validation: unit tests written first (6 new or changed), then the code. 31 unit tests pass, and the zoom-out end-to-end tests pass in Chromium and Firefox. The minimap tests fail until issue #22.
+
 ### Three test layers (team meeting, Oct 23)
 
 - **Unit** (`tests/*.test.cjs`, Node): internal logic. `tests/load.cjs` loads several scripts into one sandbox; `plot-pipeline.test.cjs` follows a CSV to chart positions and tick labels (3 new tests).
