@@ -471,7 +471,9 @@ select {
   align-items: center;
   gap: 10px;
 }
-#zoom-status { margin: 0; font-size: 13px; }
+/* Its own line, one line high: a status that rewrapped the buttons would change the
+   card's height, and the page's scroll anchoring would then hide the crosshair. */
+#zoom-status { flex-basis: 100%; min-height: 1.4em; margin: 0; font-size: 13px; }
 #zoom-help { margin: 16px 0 0; color: #647184; font-size: 13px; }
 svg .legend text { fill: #202b3c; }
 .legend-box { fill: white; fill-opacity: 0.9; stroke: #dce2ea; }
