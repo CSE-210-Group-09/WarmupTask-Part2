@@ -2,7 +2,7 @@
 //   Zooming + panning, a button to reset zoom, and an option to hide points
 //   on the line graph (the points sometimes cover the line).
 const { test, expect } = require("@playwright/test");
-const { importFile, csvWithPoints, plotPoint, markers, xTickLabels } = require("../e2e/helpers.cjs");
+const { importFile, csvWithPoints, plotPoint, panPlot, markers, xTickLabels } = require("../e2e/helpers.cjs");
 const fs = require("node:fs");
 
 const N = 150;
@@ -51,14 +51,8 @@ test("zoom buttons, panning by drag, and reset", async ({ page }) => {
   const centered = await xTickLabels(page, "line");
 
   // Drag right: the content moves right, revealing lower x values.
-  const from = await plotPoint(page, "scatter", 0.5, 0.5);
-  const to = await plotPoint(page, "scatter", 0.8, 0.5);
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(to.x, to.y, { steps: 5 });
-  await page.mouse.up();
-  const panned = await xTickLabels(page, "line");
-  expect(Number(panned[0])).toBeLessThan(Number(centered[0]));
+  await panPlot(page, "scatter", 0.5, 0.5, 0.8, 0.5);
+  await expect.poll(async () => Number((await xTickLabels(page, "line"))[0])).toBeLessThan(Number(centered[0]));
 
   await page.locator("#zoom-out").click();
   await expect(page.locator("#zoom-status")).toContainText("Zoomed 2x");
