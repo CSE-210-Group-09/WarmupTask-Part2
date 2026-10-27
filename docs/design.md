@@ -13,6 +13,7 @@ Who decided what:
 | PR #4 | XML import |
 | PR #5 | Zoom, pan and reset zoom; browser tests for every user story |
 | PR #6 | Plotting multiple columns |
+| Part 3, issue #20 | Zooming out and panning past the data, minimap |
 | Part 3, issue #31 | JSON and spreadsheet import |
 
 ## Contents
@@ -209,11 +210,12 @@ A "Show data points" checkbox, on by default, hides the markers on the line grap
 
 **What the user can do:**
 - Ctrl + scroll (⌘ + scroll on a Mac), or a trackpad pinch, zooms around the pointer.
-- Dragging a zoomed chart pans it.
+- Zoom out goes past the data, down to 0.1x, where the data fills the middle tenth of each axis (issue #21).
+- Dragging a zoomed-in or zoomed-out chart pans it, past the data if you like.
 - Zoom in, Zoom out and Reset zoom buttons do the same from the keyboard.
-- A status line reads "Showing all points." or "Zoomed 4x."
+- A status line reads "Showing all points." at the data's own range, otherwise "Zoomed 4x." or "Zoomed 0.5x."
 
-**How the view is stored.** `view.js` keeps the visible part of each axis as fractions of the whole, `[start, end]`, where `[0, 1]` means everything. Drawing maps a value through its axis (5.1) and then through the view.
+**How the view is stored.** `view.js` keeps the visible part of each axis as fractions of the data's range, `[start, end]`, where `[0, 1]` is the data and `[-0.5, 1.5]` the data with half its width of space on each side. `createAxis` positions and ticks continue past 0 and 1 in a straight line (linear) or by decades (log). Drawing maps a value through its axis (5.1) and then through the view.
 
 | Option | Verdict |
 |---|---|
@@ -229,7 +231,11 @@ A "Show data points" checkbox, on by default, hides the markers on the line grap
 | One shared view for both charts | Keeps the two linked views showing the same points | A separate view per chart, which needs two reset buttons and lets the charts disagree |
 | Both axes zoom together | Keeps dense scatter clusters readable | X-only zoom |
 | An axis with a single value stays at full range | There's nothing to zoom into; its point stays centered | — |
-| 1x to 1000x, and panning stays inside the data | The user can't get lost off-screen | Unlimited zoom |
+| 0.1x to 1000x; views stay inside a limit centered on the data, `[-4.5, 5.5]` (issue #21) | Zooming out shows the data in context and makes room to pan past its edges. The limit keeps the data findable, and the minimap shows where the view is. | Stopping at the data's range (part 2: you can't get lost, but can't see past the edges); unlimited zoom out, where the data shrinks to a dot |
+| Only the data's own range counts as the full view | Reset zoom stays enabled and the status shows the level whenever the view differs, including when zoomed out or panned at 1x | Treating any view that contains all the data as full, which would disable Reset when zoomed out |
+| Drag pans whenever the view isn't the full view | On touch screens a finger at the full view still scrolls the page, as in part 2 | Panning at the full view too |
+| Zoom level is the axis furthest from 1x | A constant axis never zooms, so taking the narrower span (part 2) would report 1x when zoomed out | — |
+| Ticks beyond the largest numbers stop at ±1.8e308 (log ticks at 5e-324) | Zooming out on data near the limits of JavaScript numbers would otherwise label ticks "Infinity" or 0 | A smaller zoom-out limit for such data |
 | Points outside the view aren't drawn; the line is clipped to the plot | Fewer markers when zoomed, a shorter tab order, and exports that match the screen. The line still uses every point, so its slope at the edges is right. | Drawing everything |
 | Drag pans from the view at the start of the drag | Rounding can't build up over a long drag | Adding up each move |
 | Redraws are grouped to one per animation frame | Wheel and drag fire many events per frame | Redrawing on every event |
@@ -246,6 +252,21 @@ After import, a "Columns to plot" panel shows a menu for the X column and a chec
 - Re-importing a file with the same columns keeps the selection and colors, which suits the "edit the file and import again" workflow from 4.1.
 - Changing the columns resets the zoom, because the ranges change.
 - **Considered:** a multi-select list, which is hard to use with a mouse and hard to read, or drag-and-drop column chips, which is more code and weaker for keyboard users.
+
+### 6.6 Minimap (issue #22)
+
+Below the zoom buttons, a small overview shows every line of the data and a box for the part in view, with a caption giving the visible ranges ("In view: x 56.9 to 94.1, y 12 to 48."). It appears once data is loaded and isn't part of exported images.
+
+- **Frame:** `overviewRange` makes the minimap show the data and the view together. Zoomed in, the frame is the data and the box sits inside it. Zoomed out or panned away, the frame grows to include the view, so the box is never cut off and the data shows as a shaded rectangle inside it.
+- **Moving the view:** drag the box to pan; press anywhere else to center the view there, then keep dragging. Arrow keys on the focused minimap pan by a tenth of the view, which is the first way to pan without a mouse. Like the charts, it does nothing at the data's own range.
+- **Drag maths:** a drag keeps the frame from its start. The frame can change while the view moves past the data, and recomputing it mid-drag would change the scale under the pointer.
+- **Text selection:** the charts and the minimap aren't text-selectable. A drag used to select tick labels, and in Chromium the next drag then moved that selection (the browser cancels the pointer to start drag-and-drop) instead of panning. The new test that drags three times in a row found this; it was already on main.
+
+| Choice | Why | Considered |
+|---|---|---|
+| One minimap for both charts | They share one view (6.1) | One per chart, which repeats the same picture |
+| Lines only, in the series colors | Cheap to draw for any number of points, and matches the line graph | Every point as a dot, which is slow for large files |
+| An SVG in the zoom controls, drawn by `app.js` | Reuses the chart's axes (`chartAxes`) and view maths (`viewPosition`, `viewRatio`) | A corner of each chart, which covers data and would end up in exports |
 
 ## 7. Appearance
 
@@ -286,7 +307,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 - Status messages (import result, scale explanation, zoom status, export result) are live regions, so screen readers announce them.
 - The log buttons report their state with `aria-pressed`, and disabled buttons explain why in nearby text.
 - Every control has a label. Markers are focusable, with labels naming each value, and the tooltip also appears on focus (6.2).
-- Zoom works from buttons as well as the wheel, and none of the features require a mouse.
+- Zoom works from buttons as well as the wheel, and the focused minimap pans with the arrow keys, so none of the features require a mouse. The minimap's caption states the visible ranges in text.
 - **Gaps:** the charts haven't been tested with a real screen reader, and there's no text alternative listing all values, such as a data table.
 
 ## 10. Testing
@@ -308,6 +329,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `customize-appearance.spec.js` | I want to be able to customize the appearance of the plot |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data (issue #20) |
 | `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files (issue #31) |
 
 **End-to-end tests** (`e2e/*.spec.js`, Playwright) follow whole workflows across several stories, from import to export. Part 3's workflows were written before its stories and are marked as expected to fail until the stories they need reach `main`.
@@ -327,6 +349,7 @@ Totals when PR #6 was opened: 22 unit tests, and 26 browser tests on each of two
 - CSV: no commas or line breaks inside quoted fields (4.3).
 - No gaps: every row needs every value (4.2).
 - Lines are sorted by X, so paths that double back can't be drawn (4.6).
+- Zoomed out on data near ±1.8e308, the outer ticks repeat the largest number (6.4).
 - No pinch-to-zoom on phones (6.4).
 - Untested with a real screen reader; no data-table alternative (9).
 - Default line colors can repeat a color you picked (7.2).

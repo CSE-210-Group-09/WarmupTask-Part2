@@ -51,4 +51,31 @@ const markers = (page, chart) => page.locator(`#${chart}-chart circle.point`);
 const xTickLabels = (page, chart) =>
   page.locator(`#${chart}-chart text[text-anchor="middle"]:not(.axis-label)`).allTextContents();
 
-module.exports = { PLOT, importFile, csvWithPoints, plotPoint, markers, xTickLabels };
+// Pan by dragging across the plot. Uses pointer events so WebKit sees the same
+// input path as real users (page.mouse alone often skips pointermove on SVG).
+async function panPlot(page, chart, fx0, fy0, fx1, fy1) {
+  const from = await plotPoint(page, chart, fx0, fy0);
+  const to = await plotPoint(page, chart, fx1, fy1);
+  const svg = page.locator(`#${chart}-chart`);
+  const pointer = (type, x, y, buttons) =>
+    svg.dispatchEvent(type, {
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      button: 0,
+      buttons,
+      clientX: x,
+      clientY: y
+    });
+  await pointer("pointerdown", from.x, from.y, 1);
+  const steps = 12;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = from.x + (to.x - from.x) * t;
+    const y = from.y + (to.y - from.y) * t;
+    await pointer("pointermove", x, y, 1);
+  }
+  await pointer("pointerup", to.x, to.y, 0);
+}
+
+module.exports = { PLOT, importFile, csvWithPoints, plotPoint, panPlot, markers, xTickLabels };
