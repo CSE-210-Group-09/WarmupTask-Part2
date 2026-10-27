@@ -30,7 +30,7 @@ Each story has a staging branch, `story/<slug>`, and each task a scratch branch 
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`data.js`, `xlsx.js`, `scale.js`, `view.js`, `layout.js`) that the page loads with `<script>` tags. The tests load them into a Node `vm` sandbox, so no module system or bundler is needed. `tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name or script that doesn't exist yet comes back `undefined`, so a test written before its code fails on its own rather than breaking the whole file. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `xlsx.js`, `scale.js`, `view.js`, `layout.js`, `hover.js`) that the page loads with `<script>` tags. The tests load them into a Node `vm` sandbox, so no module system or bundler is needed. `tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name or script that doesn't exist yet comes back `undefined`, so a test written before its code fails on its own rather than breaking the whole file. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 `plot-pipeline.test.cjs` follows a CSV through parsing, column selection, axes and the zoomed view to chart positions and tick labels.
 
@@ -55,6 +55,7 @@ One Playwright file per user story, each test named after the behaviour it check
 | `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data |
 | `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files |
 | `appearance-settings.spec.js` | I want the chart to look the way I set it up |
+| `compare-points.spec.js` | I want to compare data points across both charts (#23); shared crosshair (#24), snapping (#25) |
 
 ## End-to-end tests (`e2e/`)
 
@@ -70,3 +71,4 @@ Browser tests drive the page like a user: importing through the real file input,
 Gotchas:
 - The charts are below the fold of the default 1280 × 720 window. Scroll a chart into view before aiming the mouse at it (`plotPoint` does this); a pointer outside the window hits nothing.
 - Redraws wait for the next animation frame. After a zoom, wait for `#zoom-status` to change before counting markers.
+- A page scroll hides the crosshair. Scroll the charts into view and wait a frame before hovering, as `compare-points.spec.js` does in `beforeEach`.

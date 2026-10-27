@@ -32,6 +32,19 @@ const zoomButtons = {
 const zoomStatus = document.querySelector("#zoom-status");
 // Both charts share one view, so they always show the same part of the data.
 let view = fullView();
+// The crosshair's position as fractions of the plot area (0 at the left or
+// bottom edge, 1 at the right or top), or null while it is hidden. The charts
+// share their axes and view, so one position marks the same values on both.
+// `fromPointer` tells a crosshair following the pointer from one on a focused point.
+let crosshair = null;
+// The axes of the charts as last drawn, for reading values under the crosshair.
+let axes = null;
+const charts = () => document.querySelectorAll(".charts svg");
+// Snapping (#25): with its markers hidden, the line graph has nothing to hover,
+// so the pointer snaps to the data point nearest by X. While it is snapped,
+// `snap` holds the pointer's position (plot fractions) and the X value.
+let snap = null;
+const lineChart = document.querySelector("#line-chart");
 
 const showLinePoints = document.querySelector("#show-line-points");
 const pointSize = document.querySelector("#point-size");
@@ -205,7 +218,14 @@ function showTooltip(circle, text) {
   tooltip.style.top = `${Math.max(8, Math.min(top, window.innerHeight - box.height - 8))}px`;
 }
 
-window.addEventListener("scroll", hideTooltip, true);
+// Scrolling moves the charts under a still pointer, so hide what follows it.
+// A crosshair on a focused point scrolls with its chart, so it stays: tabbing
+// to a point off-screen scrolls the page.
+window.addEventListener("scroll", () => {
+  hideTooltip();
+  clearSnap();
+  if (crosshair?.fromPointer) setCrosshair(null);
+}, true);
 window.addEventListener("resize", hideTooltip);
 
 // Create SVG elements in the SVG namespace.
@@ -289,7 +309,8 @@ function drawChart(svg, connectPoints) {
   }
 
   const { left, right, top, bottom } = PLOT;
-  const { x: xAxis, y: yAxis } = chartAxes();
+  axes = chartAxes();
+  const { x: xAxis, y: yAxis } = axes;
   // Map through the full axis first, then through the zoomed view.
   const scaleX = (x) => left + viewPosition(xAxis.position(x), view.x) * (right - left);
   const scaleY = (y) => bottom - viewPosition(yAxis.position(y), view.y) * (bottom - top);
@@ -343,6 +364,10 @@ function drawChart(svg, connectPoints) {
     }
   }
 
+  // Below the markers, so they stay on top and keep their tooltips.
+  drawCrosshair(svg);
+  if (connectPoints) drawSnapLayer(svg);
+
   // Hiding markers leaves the line and the scatter plot unchanged.
   // Only points inside the view get a marker, so zooming in on 100+ points
   // leaves fewer, separated markers (and fewer stops for keyboard focus).
@@ -370,14 +395,158 @@ function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
     const text = `${selection.x}: ${point.x}\n${line.name}: ${point.y}`;
     circle.addEventListener("pointerenter", () => showTooltip(circle, text));
     circle.addEventListener("pointerleave", hideTooltip);
-    circle.addEventListener("focus", () => showTooltip(circle, text));
-    circle.addEventListener("blur", hideTooltip);
+    // Focus also puts the crosshair through the point, on both charts.
+    circle.addEventListener("focus", () => {
+      showTooltip(circle, text);
+      setCrosshair({
+        x: viewPosition(axes.x.position(point.x), view.x),
+        y: viewPosition(axes.y.position(point.y), view.y)
+      });
+    });
+    circle.addEventListener("blur", () => {
+      hideTooltip();
+      setCrosshair(null);
+    });
     // WebKit treats Backspace outside an editable field as history back; keep focus here.
     circle.addEventListener("keydown", (event) => {
       if (event.key === "Backspace" || event.key === "Delete") event.preventDefault();
     });
     svg.append(circle);
   });
+}
+
+// Show the crosshair at `position` (plot fractions) on both charts, or hide it with null.
+function setCrosshair(position) {
+  crosshair = position;
+  for (const svg of charts()) placeCrosshair(svg);
+}
+
+// An empty, hidden crosshair: a vertical and a horizontal line through the plot,
+// and a readout on each axis with the value there. placeCrosshair moves and
+// shows it, so following the pointer never redraws the chart. It ignores the
+// pointer (style.css), and screen readers skip it: focused markers have labels.
+function drawCrosshair(svg) {
+  const layer = svgElement("g", { class: "crosshair", "aria-hidden": "true", display: "none" });
+  layer.append(
+    svgElement("line", { class: "crosshair-line crosshair-vertical" }),
+    svgElement("line", { class: "crosshair-line crosshair-horizontal" })
+  );
+  for (const key of ["x", "y"]) {
+    const readout = svgElement("g", { class: `crosshair-readout crosshair-${key}` });
+    readout.append(svgElement("rect", { rx: 3 }), svgElement("text", {}));
+    layer.append(readout);
+  }
+  svg.append(layer);
+  placeCrosshair(svg);
+}
+
+function placeCrosshair(svg) {
+  const layer = svg.querySelector(".crosshair");
+  if (!layer) return;
+  if (!crosshair || !hasData()) {
+    layer.setAttribute("display", "none");
+    return;
+  }
+  layer.removeAttribute("display"); // Shown before measuring the readouts.
+  const { left, right, top, bottom } = PLOT;
+  const x = left + crosshair.x * (right - left);
+  const y = bottom - crosshair.y * (bottom - top);
+  setAttributes(layer.querySelector(".crosshair-vertical"), { x1: x, y1: top, x2: x, y2: bottom });
+  setAttributes(layer.querySelector(".crosshair-horizontal"), { x1: left, y1: y, x2: right, y2: y });
+  // The X readout sits over the tick labels, centered under the line but kept
+  // inside the chart; the Y readout ends at the axis, like the Y tick labels.
+  placeReadout(layer.querySelector(".crosshair-x"), readoutText("x", crosshair.x),
+    (width) => Math.max(0, Math.min(480 - width, x - width / 2)), bottom + 17);
+  placeReadout(layer.querySelector(".crosshair-y"), readoutText("y", crosshair.y),
+    (width) => Math.max(0, left - 4 - width), y);
+}
+
+// Size a readout's box to its text; `boxLeft` turns the width into a position.
+function placeReadout(readout, text, boxLeft, middle) {
+  const [box, label] = readout.children;
+  label.textContent = text;
+  const width = label.getBBox().width + 10;
+  const height = 18;
+  const x = boxLeft(width);
+  setAttributes(box, { x, y: middle - height / 2, width, height });
+  setAttributes(label, { x: x + width / 2, y: middle + 4 });
+}
+
+// The value under the crosshair on one axis. Its digits depend on how much the
+// value changes across a pixel there (formatReadout), which shrinks with zoom.
+function readoutText(key, position) {
+  const range = view[key];
+  const valueAt = (fraction) => axes[key].tick(Math.min(1, Math.max(0, viewRatio(fraction, range))));
+  const pixel = 1 / (key === "x" ? PLOT.right - PLOT.left : PLOT.bottom - PLOT.top);
+  const resolution = Math.abs(valueAt(position + pixel) - valueAt(position - pixel)) / 2;
+  return formatReadout(valueAt(position), resolution);
+}
+
+function setAttributes(element, attributes) {
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+}
+
+// An empty layer for the snapped dots, above the crosshair. A redraw (zoom,
+// import, scale) moves the points, so snap again where the pointer is.
+function drawSnapLayer(svg) {
+  svg.append(svgElement("g", { class: "snap-hover", "aria-hidden": "true" }));
+  if (!snap) return;
+  const snapped = snapAt(snap.position);
+  if (snapped) setCrosshair({ ...snapped, fromPointer: true });
+}
+
+// Snap the line graph to the X value nearest the pointer's `position` (plot
+// fractions), among the points in view. Mark each line's point at that X with a
+// dot in the line's color and list their values in the tooltip. Returns the
+// snapped point, as plot fractions, for the crosshair; null when not snapping
+// (markers shown, no data, outside the plot, or no point in view).
+function snapAt(position) {
+  const layer = lineChart.querySelector(".snap-hover");
+  if (!layer || !hasData() || showLinePoints.checked || !position.inside) {
+    clearSnap();
+    return null;
+  }
+  const { left, right, top, bottom } = PLOT;
+  const toX = (x) => left + viewPosition(axes.x.position(x), view.x) * (right - left);
+  const toY = (y) => bottom - viewPosition(axes.y.position(y), view.y) * (bottom - top);
+  const visible = (pixel, low, high) => pixel >= low - 0.5 && pixel <= high + 0.5;
+  // Each X value once; those outside the view can't be snapped to.
+  const xs = [...new Set(allPoints().map((point) => point.x))];
+  const pixels = xs.map((x) => (visible(toX(x), left, right) ? toX(x) : null));
+  const index = nearestIndex(pixels, left + position.x * (right - left));
+  if (index === -1) {
+    clearSnap();
+    return null;
+  }
+
+  const x = xs[index];
+  const cx = pixels[index];
+  const pointerY = bottom - position.y * (bottom - top);
+  // Every line's points at that X (more than one if the X value repeats).
+  const hits = series.flatMap((line) => line.points.filter((point) => point.x === x).map((point) => ({ line, point })));
+  const dots = hits
+    .map(({ line, point }) => ({ cy: toY(point.y), color: line.color }))
+    .filter(({ cy }) => visible(cy, top, bottom))
+    .map(({ cy, color }) => svgElement("circle", { class: "snap-dot", cx, cy, r: 4, fill: color }));
+  layer.replaceChildren(...dots);
+  // The tooltip goes beside the dot nearest the pointer, or at the pointer's
+  // height when every value at this X is above or below the view.
+  const distance = (dot) => Math.abs(Number(dot.getAttribute("cy")) - pointerY);
+  let anchor = dots.reduce((best, dot) => (best && distance(best) <= distance(dot) ? best : dot), null);
+  if (!anchor) {
+    anchor = svgElement("circle", { class: "snap-anchor", cx, cy: pointerY, r: 0 });
+    layer.append(anchor);
+  }
+  showTooltip(anchor, [`${selection.x}: ${x}`, ...hits.map(({ line, point }) => `${line.name}: ${point.y}`)].join("\n"));
+  snap = { position, x };
+  return { x: (cx - left) / (right - left), y: (bottom - Number(anchor.getAttribute("cy"))) / (bottom - top) };
+}
+
+function clearSnap() {
+  if (!snap) return;
+  snap = null;
+  lineChart.querySelector(".snap-hover")?.replaceChildren();
+  hideTooltip();
 }
 
 // With two or more lines, a legend in a corner of the plot names each color:
@@ -446,7 +615,7 @@ function plotPosition(svg, event) {
   };
 }
 
-for (const svg of document.querySelectorAll(".charts svg")) {
+for (const svg of charts()) {
   // Ctrl/Cmd + wheel zooms (trackpad pinch sends the same event); a plain
   // wheel still scrolls the page, so the charts never trap scrolling.
   svg.addEventListener("wheel", (event) => {
@@ -469,10 +638,19 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     drag = { start: position, view: { x: [...view.x], y: [...view.y] } };
     svg.setPointerCapture(event.pointerId);
     hideTooltip();
+    clearSnap();
+    setCrosshair(null); // It would point at moving values; it returns on the next move.
   });
   svg.addEventListener("pointermove", (event) => {
-    if (!drag) return;
     const position = plotPosition(svg, event);
+    if (!drag) {
+      // Inside the plot, the crosshair follows the pointer on both charts. On the
+      // line graph with its markers hidden, it follows the snapped point instead.
+      const snapped = svg === lineChart ? snapAt(position) : null;
+      const at = snapped ?? { x: position.x, y: position.y };
+      setCrosshair(hasData() && position.inside ? { ...at, fromPointer: true } : null);
+      return;
+    }
     // Pan from the starting view so rounding never accumulates over a long drag.
     view = {
       x: panRange(drag.view.x, position.x - drag.start.x),
@@ -482,8 +660,17 @@ for (const svg of document.querySelectorAll(".charts svg")) {
   });
   const endDrag = () => { drag = null; };
   svg.addEventListener("pointerup", endDrag);
-  svg.addEventListener("pointercancel", endDrag);
+  svg.addEventListener("pointercancel", () => {
+    endDrag();
+    clearSnap();
+    setCrosshair(null); // A touch that turned into a page scroll.
+  });
   svg.addEventListener("lostpointercapture", endDrag);
+  svg.addEventListener("pointerleave", () => {
+    if (drag) return;
+    setCrosshair(null);
+    clearSnap();
+  });
 }
 
 // The buttons zoom around the center, for keyboard users and mice without a wheel.
@@ -596,6 +783,8 @@ function chartImage(svg, title) {
   const copy = svg.cloneNode(true);
   const originals = svg.querySelectorAll("*");
   const clones = copy.querySelectorAll("*");
+  // The crosshair and snapped dots follow the pointer; they aren't part of the chart.
+  const crosshairs = copy.querySelectorAll(".crosshair, .snap-hover");
   originals.forEach((element, index) => {
     const style = getComputedStyle(element);
     for (const property of ["fill", "stroke", "stroke-width", "font-family", "font-size", "font-weight"]) {
@@ -605,6 +794,7 @@ function chartImage(svg, title) {
       clones[index].removeAttribute(attribute);
     }
   });
+  crosshairs.forEach((layer) => layer.remove()); // After styling, which pairs elements by index.
   const image = svgElement("svg", {
     viewBox: "0 0 480 332", width: 960, height: 664, role: "img",
     "aria-labelledby": "image-title"

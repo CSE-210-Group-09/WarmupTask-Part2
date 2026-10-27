@@ -3,8 +3,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const { createAxis, formatTick, formatTicks } = vm.runInNewContext(
-  fs.readFileSync(path.join(__dirname, "../scale.js"), "utf8") + "; ({ createAxis, formatTick, formatTicks });"
+const { createAxis, formatTick, formatTicks, formatReadout } = vm.runInNewContext(
+  fs.readFileSync(path.join(__dirname, "../scale.js"), "utf8") +
+  "; ({ createAxis, formatTick, formatTicks, formatReadout });"
 );
 
 test("rounded labels never overflow to Infinity", () => {
@@ -121,5 +122,29 @@ test("zoomed tick labels gain digits until different values read differently", (
   // Extremes still never overflow.
   for (const label of formatTicks([Number.MAX_VALUE * 0.999, Number.MAX_VALUE])) {
     assert.doesNotMatch(label, /Infinity|NaN/);
+  }
+});
+
+test("crosshair readouts gain digits as each pixel covers a smaller range", () => {
+  // Full view of 0..100 across 342 pixels: about 0.3 per pixel, so 3 digits.
+  assert.equal(formatReadout(37.40312, 0.3), "37.4");
+  // Zoomed 1000x: 0.0003 per pixel needs the fourth decimal (6 digits).
+  assert.equal(formatReadout(37.40312, 0.0003), "37.4031");
+  // Trailing zeros are dropped, as on ticks.
+  assert.equal(formatReadout(50, 0.0003), "50");
+  assert.equal(formatReadout(-1234.5678, 0.01), "-1234.57");
+  assert.equal(formatReadout(1.5e20, 1e15), "1.5e+20");
+});
+
+test("crosshair readouts keep 3 to 17 digits and never overflow", () => {
+  // Nothing to resolve (a constant axis), zero, or an overflowing difference.
+  assert.equal(formatReadout(42.123, 0), "42.1");
+  assert.equal(formatReadout(0, 0.3), "0");
+  assert.equal(formatReadout(Number.MAX_VALUE, Infinity), "1.8e+308");
+  assert.equal(formatReadout(Number.MAX_VALUE, Number.MIN_VALUE), formatTick(Number.MAX_VALUE, 17));
+  // A coarse resolution never drops below 3 digits.
+  assert.equal(formatReadout(12.34, 500), "12.3");
+  for (const [value, resolution] of [[-Number.MAX_VALUE, 1e300], [Number.MIN_VALUE, Number.MIN_VALUE], [1, NaN]]) {
+    assert.doesNotMatch(formatReadout(value, resolution), /Infinity|NaN/);
   }
 });

@@ -68,6 +68,14 @@ svg .axis-label { font-weight: 600; }
 /* Hover and focus keep the line's color (the fill attribute) and add a dark ring,
    which shows against every palette color, including yellow. */
 .point:hover, .point:focus { stroke: #202b3c; stroke-width: 3; outline: none; }
+/* The crosshair follows the pointer without catching it, so markers keep their tooltips. */
+.crosshair { pointer-events: none; }
+.crosshair-line { stroke: #647184; stroke-width: 1; stroke-dasharray: 4 3; }
+.crosshair-readout rect { fill: #202b3c; }
+svg .crosshair-readout text { fill: white; font-size: 11px; text-anchor: middle; }
+/* Dots on the snapped points of a line graph without markers (#25). */
+.snap-hover { pointer-events: none; }
+.snap-dot { stroke: white; stroke-width: 1.5; }
 #point-tooltip {
   position: fixed;
   z-index: 10;

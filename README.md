@@ -26,8 +26,10 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 - Import an Excel workbook (`.xlsx`, see `sample.xlsx`). Its first sheet is read like a CSV: column names in the first filled row, then a number in each column on every row. Formula cells use their saved results. Older `.xls` files and password-protected workbooks can't be read. See [design §4.8](docs/design.md#48-spreadsheet-import-issue-33).
 - The imported file is the only source of data, points can't be added or deleted on the page. To change the data, edit the file and import it again.
 - Hover or focus a point to see its original values.
+- Move the pointer over either chart to show a crosshair on both charts at the same X and Y values, with those values read off each axis. Focusing a point with the keyboard puts the crosshair through it. The crosshair hides when the pointer leaves the plot, while dragging to pan, and when the page scrolls, and it is never part of exported images. See [design §6.7](docs/design.md#67-shared-crosshair-issue-24).
 - Drag **Point size** above the scatter plot to resize its points (2 to 12); exported images keep the size.
 - Uncheck **Show data points** above the line graph to see the line without markers. The scatter plot keeps its points, and exported images use the current visibility setting.
+- With the line graph's points hidden, hovering it snaps to the data point nearest by X: a small dot in each line's color marks that X and the tooltip lists every line's value there. The crosshair snaps to the same point. With points shown, hovering works as before. See [design §6.8](docs/design.md#68-snapping-to-the-nearest-point-issue-25).
 - Under **Columns to plot**, pick the **X-axis column** and check the columns to draw as lines. Each line has its own color picker; colors persist across imports and scale changes and apply to exports. With two or more lines, both charts show a legend; **Legend position** puts it in the corner covering the fewest points (Auto) or in a corner you choose. By default, a column named `x` (else the first column) is X and every other column is a line. See [design §6.5](docs/design.md#65-picking-columns-pr-6-issue-4).
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
@@ -47,6 +49,7 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 - `scale.js`: numeric scaling and tick formatting.
 - `view.js`: zoom and pan state.
 - `layout.js`: where the legend goes.
+- `hover.js`: finding the point nearest the pointer.
 - `data.js`: parsing files into a table of columns, column selection, and line colors.
 - `xlsx.js`: reading `.xlsx` workbooks into the same table, without a library.
 - `app.js`: file input and XML reading, chart interactions, and image export.

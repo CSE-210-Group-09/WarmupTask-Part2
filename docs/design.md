@@ -16,6 +16,8 @@ Who decided what:
 | Part 3, issue #20 | Zooming out and panning past the data, minimap |
 | Part 3, issue #26 | Hover color, point size, chart title, legend position |
 | Part 3, issue #31 | JSON and spreadsheet import |
+| Issue #24 | Shared crosshair on both charts |
+| Issue #25 | Snapping to the nearest point when line markers are hidden |
 
 ## Contents
 
@@ -44,6 +46,7 @@ The user stories it serves:
 | I want to be able to customize the appearance of the plot | PR #2 (labels), PR #3 and PR #6 (color) |
 | I want to be able to pick which columns to plot | PR #6 |
 | I want to create a plot from an XML file | PR #4, extended in PR #6 |
+| I want to compare data points across both charts (#23) | Issue #24 (shared crosshair), issue #25 (snapping) |
 
 ## 2. How the code is organized
 
@@ -54,6 +57,7 @@ The user stories it serves:
 | `scale.js` | Maps values to positions on an axis and formats tick labels. No DOM access. |
 | `view.js` | Zoom and pan state. No DOM access. |
 | `layout.js` | Where the legend goes in the plot. No DOM access. |
+| `hover.js` | Finds the point nearest the pointer. No DOM access. |
 | `data.js` | Parses files into a table of columns, chooses columns, assigns colors. No DOM access. |
 | `xlsx.js` | Reads `.xlsx` workbooks (unzipping and XML reading) into the same table. No DOM access. |
 | `app.js` | Everything that touches the page: file input, XML reading, drawing, interaction, export |
@@ -79,11 +83,11 @@ The site has no framework, no build step and no runtime libraries. We kept that 
 
 ### 3.2 Logic in plain scripts, tested in Node (Team 10; extended in PRs #5 and #6)
 
-Logic that doesn't touch the page lives in classic scripts that `index.html` loads with `<script defer>` and that share the global scope: `scale.js` from Team 10, plus `view.js` (PR #5) and `data.js` (PR #6). Tests load each file into a Node `vm` sandbox and call its functions directly. `tests/scale.test.cjs` from Team 10 already did this.
+Logic that doesn't touch the page lives in classic scripts that `index.html` loads with `<script defer>` and that share the global scope: `scale.js` from Team 10, plus `view.js` (PR #5), `data.js` (PR #6) and `hover.js` (issue #25). Tests load each file into a Node `vm` sandbox and call its functions directly. `tests/scale.test.cjs` from Team 10 already did this.
 
 - **Why:** this keeps the "open `index.html` directly" property. ES modules don't load from `file://` URLs in Chrome, so switching to `import`/`export` would force everyone to run a server.
 - **Considered:** ES modules with a bundler, which would give proper imports but needs a build step.
-- **Trade-off:** files must load in order (`scale.js`, `view.js`, `data.js`, then `app.js`), and names share one global scope.
+- **Trade-off:** files must load in order (`scale.js`, `view.js`, `data.js`, `hover.js`, then `app.js`), and names share one global scope.
 
 ### 3.3 SVG charts with a fixed coordinate system (Team 10; kept)
 
@@ -270,6 +274,42 @@ Below the zoom buttons, a small overview shows every line of the data and a box 
 | Lines only, in the series colors | Cheap to draw for any number of points, and matches the line graph | Every point as a dot, which is slow for large files |
 | An SVG in the zoom controls, drawn by `app.js` | Reuses the chart's axes (`chartAxes`) and view maths (`viewPosition`, `viewRatio`) | A corner of each chart, which covers data and would end up in exports |
 
+### 6.7 Shared crosshair (issue #24)
+
+Moving the pointer over either plot area draws a dashed vertical and horizontal line through it on **both** charts, with a dark readout on each axis giving the value there. Because the charts share their axes and view (6.1, 6.4), one position in plot fractions marks the same X and Y values on both, so the crosshair is stored once, as that position, and drawn on each chart.
+
+- **When it shows:** inside the plot area only. It hides when the pointer leaves the plot, when a drag to pan starts (it returns on the next move), when a touch turns into a page scroll, and when the page scrolls, since the chart moves under a still pointer (the tooltip already hid on scroll for the same reason). A crosshair on a focused point stays on scroll, because it moves with its chart and tabbing to an off-screen point scrolls the page. Ctrl + wheel zoom keeps it, and the value under it, at the pointer.
+- **Keyboard:** focusing a marker puts the crosshair through that point on both charts, so keyboard users can compare too.
+- **Readouts:** the value at the crosshair is read through the zoomed view and the axis, so log axes and zoom work unchanged. `formatReadout` in `scale.js` shows enough digits to tell positions a pixel apart (at least 3, like ticks), so readouts gain digits as you zoom in. The X readout is kept inside the chart near its edges.
+- **Drawing:** each chart gets a hidden crosshair layer when it is drawn. Pointer moves only update that layer's attributes rather than redrawing the chart (`setCrosshair`, `placeCrosshair` in `app.js`). The layer sits below the markers and ignores the pointer, so markers keep their tooltips. Screen readers skip it (`aria-hidden`): focused markers already announce their values.
+- **Export:** the crosshair is removed from exported images, since it follows the pointer rather than being part of the chart.
+
+| Choice | Why | Considered |
+|---|---|---|
+| Free crosshair that follows the pointer exactly | Matches the issue; lets you read any position, between points too | Snapping everywhere; issue #25 snaps only where there are no markers to hover (6.8) |
+| One position shared by both charts | Same values on both by construction | Mapping data values per chart, which is the same thing here with more code |
+| Update a layer instead of redrawing | Pointer moves fire many times a frame; a full redraw per move would be slow with many points | Calling `render()` on every move |
+| Readouts on the axes | Show exact values without covering data | A floating label beside the pointer, which covers points and the tooltip |
+
+### 6.8 Snapping to the nearest point (issue #25)
+
+With "Show data points" off, the line graph has no markers, so there was nothing to hover and no way to read values. Now hovering anywhere in its plot area snaps to the data point nearest the pointer **by X**:
+
+- A small dot in the line's color marks each line's point at that X, and the tooltip lists the X value and every line's value there ("day: 8", "cityA_temp: 19.2", "cityB_temp: 12.8"). With one line it reads like a marker's tooltip.
+- The crosshair (6.7) snaps to the same point on both charts, through the dot nearest the pointer, so the readouts show that point's values.
+- Only points in the zoomed view can be snapped to. A value above or below the view is still listed, without a dot.
+- It clears when the pointer leaves the plot, when a drag to pan starts, and when the page scrolls. A redraw (Ctrl + wheel zoom, import, scale switch) snaps again where the pointer is.
+- With markers shown, hovering works as before: markers show their own tooltips and nothing snaps. The scatter plot always has markers, so it never snaps.
+- The dots are left out of exported images, like the crosshair.
+
+**Code:** `nearestIndex` in `hover.js` picks the nearest X position, skipping points outside the view. `snapAt` and `clearSnap` in `app.js` draw the dots in a layer above the crosshair and show the tooltip.
+
+| Choice | Why | Considered |
+|---|---|---|
+| Nearest by X, with no distance limit | Matches the issue; on a line graph X is what you move along, and any position reads a value | Nearest by straight-line distance within a radius, which leaves gaps where nothing shows |
+| Every line's value at that X | All lines share the X column, so one X gives one value per line to compare | Only the line nearest the pointer |
+| Only when markers are hidden | With markers shown, hovering a marker already works and the issue asks for no change | Snapping always, which would change existing behavior |
+
 ## 7. Appearance
 
 ### 7.1 Editable axis labels (PR #2, issue #7; defaults changed in PR #6)
@@ -334,9 +374,9 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 
 - Status messages (import result, scale explanation, zoom status, export result) are live regions, so screen readers announce them.
 - The log buttons report their state with `aria-pressed`, and disabled buttons explain why in nearby text.
-- Every control has a label. Markers are focusable, with labels naming each value, and the tooltip also appears on focus (6.2).
+- Every control has a label. Markers are focusable, with labels naming each value, and the tooltip also appears on focus (6.2). Focus also shows the shared crosshair through the point (6.7).
 - Zoom works from buttons as well as the wheel, and the focused minimap pans with the arrow keys, so none of the features require a mouse. The minimap's caption states the visible ranges in text.
-- **Gaps:** the charts haven't been tested with a real screen reader, and there's no text alternative listing all values, such as a data table.
+- **Gaps:** the charts haven't been tested with a real screen reader, and there's no text alternative listing all values, such as a data table. With the line graph's markers hidden, its points can't be reached from the keyboard (snapping needs a pointer); the scatter plot's markers still can.
 
 ## 10. Testing
 
@@ -344,6 +384,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 - `scale.js`: Team 10's extreme-value tests, plus tick labels when zoomed.
 - `view.js`: the zoom anchor stays put, clamping, limits, conversions.
 - `layout.js`: legend boxes in each corner, the emptiest corner and its tie order.
+- `hover.js`: the nearest value wins, values outside the view are skipped, ties go to the first.
 - `data.js`: CSV, XML and JSON tables, every validation error, selections, colors.
 - `xlsx.js`: the zip reader, the XML reader, cell types and references, the table rules, finding the first sheet.
 
@@ -361,6 +402,7 @@ Each chart exports as PNG, JPEG or SVG. The download includes the chart title, c
 | `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data (issue #20) |
 | `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files (issue #31) |
 | `appearance-settings.spec.js` | I want the chart to look the way I set it up (issue #26) |
+| `compare-points.spec.js` | I want to compare data points across both charts (#23): shared crosshair (#24), snapping (#25) |
 
 **End-to-end tests** (`e2e/*.spec.js`, Playwright) follow whole workflows across several stories, from import to export. Part 3's workflows were written before its stories and are marked as expected to fail until the stories they need reach `main`.
 
