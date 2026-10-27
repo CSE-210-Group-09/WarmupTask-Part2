@@ -25,9 +25,11 @@ One file per user story, each test named after the behaviour it checks:
 | `import-recovery.spec.js` | Failed imports preserve configured plots; corrected files can be re-imported |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `compare-points.spec.js` | I want to compare data points across both charts (#23); shared crosshair (#24) |
 
 Tests drive the page like a user: importing through the real file input, the mouse wheel with Ctrl held, dragging, and clicking. They assert what the user sees (markers, tick labels, the status line) and exported files.
 
 Gotchas:
 - The charts are below the fold of the default 1280 × 720 window. Scroll a chart into view before aiming the mouse at it (`plotPoint` does this); a pointer outside the window hits nothing.
 - Redraws wait for the next animation frame. After a zoom, wait for `#zoom-status` to change before counting markers.
+- A page scroll hides the crosshair. Scroll the charts into view and wait a frame before hovering, as `compare-points.spec.js` does in `beforeEach`.
