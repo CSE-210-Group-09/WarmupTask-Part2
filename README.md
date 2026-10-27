@@ -1,6 +1,6 @@
 # Warm-Up-Graphing-Tool
 
-A small, dependency-free CSV and XML plotting website with linked line and scatter plots of one or more columns.
+A small, dependency-free plotting website for CSV, XML, JSON and Excel (.xlsx) files, with linked line and scatter plots of one or more columns.
 Open `index.html` in a browser, or serve this folder with any static web server.
 
 ## Use
@@ -16,6 +16,14 @@ Open `index.html` in a browser, or serve this folder with any static web server.
   ```
 
   The first point names the columns; every point must have exactly one number for each of them. A malformed file or invalid point is rejected and the current data is kept.
+- Import a JSON file holding an array of objects, one per row, with a number for each column (see `sample.json`):
+
+  ```json
+  [{"x": 1, "y": 3}, {"x": 2, "y": 5}]
+  ```
+
+  The first object names the columns. Values must be JSON numbers, not strings. See [design §4.7](docs/design.md#47-json-import-issue-32).
+- Import an Excel workbook (`.xlsx`, see `sample.xlsx`). Its first sheet is read like a CSV: column names in the first filled row, then a number in each column on every row. Formula cells use their saved results. Older `.xls` files and password-protected workbooks can't be read. See [design §4.8](docs/design.md#48-spreadsheet-import-issue-33).
 - The imported file is the only source of data, points can't be added or deleted on the page. To change the data, edit the file and import it again.
 - Hover or focus a point to see its original values.
 - Drag **Point size** above the scatter plot to resize its points (2 to 12); exported images keep the size.
@@ -23,7 +31,8 @@ Open `index.html` in a browser, or serve this folder with any static web server.
 - Under **Columns to plot**, pick the **X-axis column** and check the columns to draw as lines. Each line has its own color picker; colors persist across imports and scale changes and apply to exports. With two or more lines, both charts show a legend; **Legend position** puts it in the corner covering the fewest points (Auto) or in a corner you choose. By default, a column named `x` (else the first column) is X and every other column is a line. See [design §6.5](docs/design.md#65-picking-columns-pr-6-issue-4).
 - Switch X and Y independently between linear and base-10 logarithmic scales. Log scale spreads out values across orders of magnitude.
 - An axis containing zero or negative values stays linear; the page explains why its log button is disabled. Importing such values resets that axis to linear without removing any points. The other axis keeps its selected scale.
-- Zoom with **Ctrl + scroll** (**⌘ + scroll** on a Mac) or a trackpad pinch over either chart, or with the **Zoom in** and **Zoom out** buttons. Drag a zoomed chart to pan. **Reset zoom** shows all points again. Both charts share the view, exported images show it, and importing or switching an axis scale resets it. See [design §6.4](docs/design.md#64-zoom-pan-and-reset-pr-5-issue-2).
+- Zoom with **Ctrl + scroll** (**⌘ + scroll** on a Mac) or a trackpad pinch over either chart, or with the **Zoom in** and **Zoom out** buttons. Zoom out goes past the data, down to 0.1x. Drag a zoomed chart to pan, past the data if you like. **Reset zoom** returns to the data's range. Both charts share the view, exported images show it, and importing or switching an axis scale resets it. See [design §6.4](docs/design.md#64-zoom-pan-and-reset-pr-5-issue-2).
+- The **minimap** below the zoom buttons shows all the data and a box for the part in view. Drag the box, click elsewhere to jump there, or focus it and use the arrow keys. See [design §6.6](docs/design.md#66-minimap-issue-22).
 - Type a **Chart title** to show it above both charts and use it as the heading of exported images.
 - Type X- and Y-axis labels to replace the defaults on both charts and in exported images. Blank labels fall back to the column names ("Y" when several lines share the Y axis).
 - Choose PNG, JPEG, or SVG below either chart and click **Export image**. The download includes the chart title, current scales, labels, and points on a white background. PNG and JPEG are 960 by 664 pixels; SVG remains scalable.
@@ -39,8 +48,9 @@ Scientific notation is accepted. Tick labels remain finite for very large values
 - `view.js`: zoom and pan state.
 - `layout.js`: where the legend goes.
 - `data.js`: parsing files into a table of columns, column selection, and line colors.
-- `app.js`: CSV and XML input, chart interactions, and image export.
-- `sample.csv`, `sample.xml`: the same example dataset in each format.
+- `xlsx.js`: reading `.xlsx` workbooks into the same table, without a library.
+- `app.js`: file input and XML reading, chart interactions, and image export.
+- `sample.csv`, `sample.xml`, `sample.json`, `sample.xlsx`: the same example dataset in each format.
 - `test-data/`: a larger growth dataset and a three-column city temperature dataset, each in both formats.
 - `docs/design.md`: every design decision in the project, with the reasons and the alternatives considered.
 - `docs/testing.md`: how to run the tests.

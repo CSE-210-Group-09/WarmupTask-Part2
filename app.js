@@ -93,11 +93,17 @@ function parseXML(text) {
 }
 
 // Choose a parser by file extension, falling back to content for unnamed types.
-function parseFile(name, text) {
-  const extension = name.toLowerCase().split(".").pop();
+// Files are read locally, without uploading them.
+async function parseFile(file) {
+  const extension = file.name.toLowerCase().split(".").pop();
+  if (extension === "xlsx") return parseXLSX(new Uint8Array(await file.arrayBuffer()));
+  const text = await file.text();
   if (extension === "xml") return parseXML(text);
+  if (extension === "json") return parseJSONTable(text);
   if (extension === "csv") return parseCSVTable(text);
-  return text.trimStart().startsWith("<") ? parseXML(text) : parseCSVTable(text);
+  const start = text.trimStart()[0];
+  if (start === "<") return parseXML(text);
+  return start === "[" || start === "{" ? parseJSONTable(text) : parseCSVTable(text);
 }
 
 // Rebuild the plotted series after the data, the selection or a color changes.
@@ -165,8 +171,7 @@ fileInput.addEventListener("change", async () => {
   if (!file) return;
   importButton.disabled = true;
   try {
-    const text = await file.text(); // Read the local file without uploading it.
-    table = parseFile(file.name, text); // Replace data only after every point is valid.
+    table = await parseFile(file); // Replace data only after every point is valid.
     // Keep the chosen columns when re-importing a file with the same columns.
     selection = reconcileSelection(table.columns, selection);
     view = fullView();
@@ -264,7 +269,12 @@ function updateScaleControls() {
     const reason = !allowed ? " (log scale requires all values on this axis to be positive)" : "";
     descriptions.push(`${key.toUpperCase()}: ${reset ? "reset to " : ""}${logScale[key] ? "logarithmic (base 10)" : "linear"}${reason}.`);
   }
-  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a CSV or XML file to change the axis scales.";
+  scaleHelp.textContent = hasData() ? descriptions.join(" ") : "Import a data file to change the axis scales.";
+}
+
+// One axis per direction across every plotted line, shared by both charts and the minimap.
+function chartAxes() {
+  return { x: createAxis(...dataRange("x"), logScale.x), y: createAxis(...dataRange("y"), logScale.y) };
 }
 
 // Plot area in the fixed SVG coordinates; CSS scales the chart to fit its container.
@@ -274,13 +284,12 @@ const PLOT = { left: 96, right: 438, top: 20, bottom: 252 };
 function drawChart(svg, connectPoints) {
   svg.replaceChildren();
   if (!hasData()) {
-    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a CSV or XML file to see the chart"));
+    svg.append(svgElement("text", { x: 240, y: 150, "text-anchor": "middle" }, "Import a data file to see the chart"));
     return;
   }
 
   const { left, right, top, bottom } = PLOT;
-  const xAxis = createAxis(...dataRange("x"), logScale.x);
-  const yAxis = createAxis(...dataRange("y"), logScale.y);
+  const { x: xAxis, y: yAxis } = chartAxes();
   // Map through the full axis first, then through the zoomed view.
   const scaleX = (x) => left + viewPosition(xAxis.position(x), view.x) * (right - left);
   const scaleY = (y) => bottom - viewPosition(yAxis.position(y), view.y) * (bottom - top);
@@ -363,6 +372,10 @@ function drawMarkers(svg, line, scaleX, scaleY, inside, radius) {
     circle.addEventListener("pointerleave", hideTooltip);
     circle.addEventListener("focus", () => showTooltip(circle, text));
     circle.addEventListener("blur", hideTooltip);
+    // WebKit treats Backspace outside an editable field as history back; keep focus here.
+    circle.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" || event.key === "Delete") event.preventDefault();
+    });
     svg.append(circle);
   });
 }
@@ -408,9 +421,9 @@ function updateZoomControls() {
   const full = isFullView(view);
   const canZoom = hasData() && (zoomable("x") || zoomable("y"));
   zoomButtons.in.disabled = !canZoom || zoomLevel(view) >= 1 / MIN_SPAN - 1e-6;
-  zoomButtons.out.disabled = full;
+  zoomButtons.out.disabled = !canZoom || zoomLevel(view) <= 1 / MAX_SPAN + 1e-6;
   zoomButtons.reset.disabled = full;
-  for (const svg of document.querySelectorAll(".charts svg")) svg.classList.toggle("zoomed", !full);
+  for (const svg of document.querySelectorAll(".charts svg, #minimap")) svg.classList.toggle("zoomed", !full);
   zoomStatus.textContent = !hasData() ? "" : full ? "Showing all points." : `Zoomed ${formatTick(zoomLevel(view), 2)}x.`;
 }
 
@@ -446,7 +459,8 @@ for (const svg of document.querySelectorAll(".charts svg")) {
     zoomAt(position.x, position.y, factor);
   }, { passive: false });
 
-  // Drag inside the plot to pan; it only does something when zoomed in.
+  // Drag inside the plot to pan, when zoomed in or out (not at the data's own
+  // range, so a finger on the chart still scrolls the page there).
   let drag = null;
   svg.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || !hasData() || isFullView(view)) return;
@@ -480,6 +494,91 @@ zoomButtons.reset.addEventListener("click", () => {
   render();
 });
 
+// The minimap shows all the data and a box for the view. Its frame grows to
+// include the view when zoomed out or panned past the data (overviewRange).
+const minimap = document.querySelector("#minimap");
+const MINIMAP = { left: 4, right: 156, top: 4, bottom: 104 };
+const minimapFrame = () => ({ x: overviewRange(view.x), y: overviewRange(view.y) });
+
+function drawMinimap() {
+  document.querySelector("#minimap-panel").hidden = !hasData();
+  minimap.replaceChildren();
+  if (!hasData()) return;
+  const axes = chartAxes();
+  const frame = minimapFrame();
+  const { left, right, top, bottom } = MINIMAP;
+  const toX = (ratio) => left + viewPosition(ratio, frame.x) * (right - left);
+  const toY = (ratio) => bottom - viewPosition(ratio, frame.y) * (bottom - top);
+  const box = (x, y, className) => svgElement("rect", {
+    class: className, x: toX(x[0]), y: toY(y[1]), width: toX(x[1]) - toX(x[0]), height: toY(y[0]) - toY(y[1])
+  });
+  minimap.append(box([0, 1], [0, 1], "minimap-data"));
+  for (const line of series) {
+    const points = line.points.map((p) => `${toX(axes.x.position(p.x))},${toY(axes.y.position(p.y))}`).join(" ");
+    minimap.append(svgElement("polyline", { points, class: "minimap-line", stroke: line.color }));
+  }
+  minimap.append(box(view.x, view.y, "minimap-view"));
+  const shown = (key) => formatTicks(view[key].map((ratio) => axes[key].tick(ratio))).join(" to ");
+  document.querySelector("#minimap-caption").textContent = `In view: x ${shown("x")}, y ${shown("y")}.`;
+}
+
+// Pointer position as a fraction of the data's range (the units of the view).
+function minimapRatio(event, frame) {
+  const box = minimap.getBoundingClientRect();
+  const viewBox = minimap.viewBox.baseVal;
+  const x = (event.clientX - box.left) * viewBox.width / box.width;
+  const y = (event.clientY - box.top) * viewBox.height / box.height;
+  return {
+    x: viewRatio((x - MINIMAP.left) / (MINIMAP.right - MINIMAP.left), frame.x),
+    y: viewRatio((MINIMAP.bottom - y) / (MINIMAP.bottom - MINIMAP.top), frame.y)
+  };
+}
+
+// Move each zoomable axis of the view so `start` (a range start) is where it begins.
+function moveView(starts) {
+  for (const key of ["x", "y"]) {
+    if (zoomable(key)) view[key] = placeRange(starts[key], view[key][1] - view[key][0]);
+  }
+  scheduleRender();
+}
+
+// Press inside the box and drag to pan; press elsewhere to center the view there
+// first. Like the charts, it does nothing at the data's own range.
+let minimapDrag = null;
+minimap.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || !hasData() || isFullView(view)) return;
+  const frame = minimapFrame();
+  const start = minimapRatio(event, frame);
+  const inBox = ["x", "y"].every((key) => start[key] >= view[key][0] && start[key] <= view[key][1]);
+  if (!inBox) {
+    const half = (key) => (view[key][1] - view[key][0]) / 2;
+    moveView({ x: start.x - half("x"), y: start.y - half("y") });
+  }
+  // Keep the frame from the start of the drag, so the scale doesn't change under the pointer.
+  minimapDrag = { frame, start, view: { x: [...view.x], y: [...view.y] } };
+  minimap.setPointerCapture(event.pointerId);
+});
+minimap.addEventListener("pointermove", (event) => {
+  if (!minimapDrag) return;
+  const now = minimapRatio(event, minimapDrag.frame);
+  const { start, view: from } = minimapDrag;
+  moveView({ x: from.x[0] + now.x - start.x, y: from.y[0] + now.y - start.y });
+});
+const endMinimapDrag = () => { minimapDrag = null; };
+minimap.addEventListener("pointerup", endMinimapDrag);
+minimap.addEventListener("pointercancel", endMinimapDrag);
+minimap.addEventListener("lostpointercapture", endMinimapDrag);
+
+// Arrow keys move the view a tenth of its width or height, so panning needs no mouse.
+minimap.addEventListener("keydown", (event) => {
+  const step = { ArrowLeft: ["x", 0.1], ArrowRight: ["x", -0.1], ArrowDown: ["y", 0.1], ArrowUp: ["y", -0.1] }[event.key];
+  if (!step || !hasData() || isFullView(view)) return;
+  event.preventDefault();
+  const [key, delta] = step;
+  if (zoomable(key)) view[key] = panRange(view[key], delta);
+  scheduleRender();
+});
+
 function render() {
   hideTooltip();
   updateScaleControls();
@@ -489,6 +588,7 @@ function render() {
   for (const key of ["x", "y"]) axisLabelInputs[key].placeholder = defaultAxisLabel(key);
   drawChart(document.querySelector("#line-chart"), true);
   drawChart(document.querySelector("#scatter-chart"), false);
+  drawMinimap();
 }
 
 // Make the SVG self-contained so downloaded images keep their colors and fonts.
@@ -581,4 +681,4 @@ exportButtons.forEach((button) => {
 });
 
 render();
-showStatus("No data yet. Import a CSV or XML file to get started.");
+showStatus("No data yet. Import a CSV, XML, JSON or Excel (.xlsx) file to get started.");

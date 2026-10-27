@@ -30,9 +30,13 @@ Each story has a staging branch, `story/<slug>`, and each task a scratch branch 
 
 ## Unit tests (`tests/`)
 
-Pure logic lives in plain scripts (`data.js`, `scale.js`, `view.js`, `layout.js`) that the page loads with `<script>` tags. The tests load them into a Node `vm` sandbox, so no module system or bundler is needed. `tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name or script that doesn't exist yet comes back `undefined`, so a test written before its code fails on its own rather than breaking the whole file. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
+Pure logic lives in plain scripts (`data.js`, `xlsx.js`, `scale.js`, `view.js`, `layout.js`) that the page loads with `<script>` tags. The tests load them into a Node `vm` sandbox, so no module system or bundler is needed. `tests/load.cjs` loads several scripts into one sandbox, the way the page's `<script>` tags share one global scope, and returns the functions a test names. A name or script that doesn't exist yet comes back `undefined`, so a test written before its code fails on its own rather than breaking the whole file. Arrays returned from the sandbox have a different `Array` prototype; spread them (`[...value]`) before `assert.deepEqual`.
 
 `plot-pipeline.test.cjs` follows a CSV through parsing, column selection, axes and the zoomed view to chart positions and tick labels.
+
+`zoom-navigation.test.cjs` covers zooming out and panning past the data and the minimap's frame.
+
+`file-import.test.cjs` checks that the JSON and `.xlsx` fixtures give the same tables and lines as their CSV files. `tests/zip.cjs` builds `.xlsx` workbooks in memory for tests.
 
 `appearance.test.cjs` follows data through the axes and view to where the legend goes.
 
@@ -48,6 +52,8 @@ One Playwright file per user story, each test named after the behaviour it check
 | `import-recovery.spec.js` | Failed imports preserve configured plots; corrected files can be re-imported |
 | `xml-import.spec.js` | I want to create a plot from an XML file |
 | `pick-columns.spec.js` | I want to be able to pick which columns to plot |
+| `zoom-navigation.spec.js` | I want to keep track of where I am when zoomed in, and zoom out past the data |
+| `file-import.spec.js` | I want to create a plot from JSON or spreadsheet files |
 | `appearance-settings.spec.js` | I want the chart to look the way I set it up |
 
 ## End-to-end tests (`e2e/`)
@@ -55,7 +61,7 @@ One Playwright file per user story, each test named after the behaviour it check
 | File | Workflows |
 |---|---|
 | `workflows.spec.js` | Explore a multi-column XML file and export what's on screen (XML import, columns, appearance, zoom, markers, export). Survive a bad edit to a large file and keep the settings (100+ points, log scale, appearance, zoom, import recovery). |
-| `part3-workflows.spec.js` | Part 3, expected to fail until their stories merge: open a spreadsheet and find the zoomed-out view on the minimap (#31, #20); import JSON, then title, size, place the legend and export (#31, #26); zoomed out, the legend and hover follow the settings (#20, #26). |
+| `part3-workflows.spec.js` | Part 3 workflows across stories: open a spreadsheet and find the zoomed-out view on the minimap; import JSON, then title, size, place the legend and export; zoomed out, the legend and hover follow the settings. |
 
 `e2e/helpers.cjs` and `e2e/server.cjs` (the static server Playwright starts) serve both browser layers.
 
